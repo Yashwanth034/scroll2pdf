@@ -124,6 +124,7 @@
           elements: {
             copy,
             document: editorDocument,
+            download,
             image,
             interactionLayer: editorInteractionLayer,
             status,
@@ -141,7 +142,13 @@
     }
   }
 
-  globalScope.addEventListener("beforeunload", () => {
+  globalScope.addEventListener("beforeunload", (event) => {
+    if (activeEditor?.hasUnexportedChanges()) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
+  globalScope.addEventListener("pagehide", () => {
     activeEditor?.dispose();
     activeEditor = null;
     if (imageObjectUrl) {

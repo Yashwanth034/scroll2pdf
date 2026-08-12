@@ -59,6 +59,28 @@
     return commands;
   }
 
+  function buildAnnotationCommands(document, region = {}) {
+    const renderRegion = {
+      left: Number.isFinite(region.left) ? region.left : 0,
+      top: Number.isFinite(region.top) ? region.top : 0,
+      width: Number.isFinite(region.width) ? region.width : document.width,
+      height: Number.isFinite(region.height) ? region.height : document.height,
+    };
+    const commands = [];
+    for (const annotation of document.annotations || []) {
+      const bounds = globalScope.Scroll2PDFEditorCore.getAnnotationBounds(annotation);
+      const padding = Math.max(annotation.style?.thickness || 0, annotation.style?.blur || 0, 8);
+      const visible = intersectRect({
+        left: bounds.x - padding,
+        top: bounds.y - padding,
+        width: bounds.width + padding * 2,
+        height: bounds.height + padding * 2,
+      }, renderRegion);
+      if (visible) commands.push({ kind: "annotation", annotation });
+    }
+    return commands;
+  }
+
   function drawCommands(context, source, commands) {
     for (const command of commands) {
       if (command.kind === "blank") {
@@ -82,6 +104,98 @@
         command.destinationWidth,
         command.destinationHeight,
       );
+    }
+  }
+
+  function drawPath(context, points) {
+    if (!points?.length) return;
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) {
+      context.lineTo(points[index].x, points[index].y);
+    }
+    context.stroke();
+  }
+
+  function drawPixelatedBlur(context, annotation, createCanvas) {
+    const { x, y, width, height } = annotation.geometry;
+    if (width < 1 || height < 1 || !context.canvas) return;
+    const transform = context.getTransform?.() || { a: 1, d: 1, e: 0, f: 0 };
+    const sourceX = Math.round(x * transform.a + transform.e);
+    const sourceY = Math.round(y * transform.d + transform.f);
+    const sourceWidth = Math.max(1, Math.round(width * transform.a));
+    const sourceHeight = Math.max(1, Math.round(height * transform.d));
+    const blockSize = Math.max(4, annotation.style.blur);
+    const scratch = createCanvas();
+    scratch.width = Math.max(1, Math.ceil(sourceWidth / blockSize));
+    scratch.height = Math.max(1, Math.ceil(sourceHeight / blockSize));
+    const scratchContext = scratch.getContext("2d", { alpha: false });
+    if (!scratchContext) return;
+    scratchContext.imageSmoothingEnabled = true;
+    scratchContext.drawImage(
+      context.canvas,
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      0, 0, scratch.width, scratch.height,
+    );
+    context.save();
+    context.globalAlpha = annotation.style.opacity;
+    context.imageSmoothingEnabled = false;
+    context.drawImage(scratch, 0, 0, scratch.width, scratch.height, x, y, width, height);
+    context.restore();
+    scratch.width = 1;
+    scratch.height = 1;
+  }
+
+  function drawAnnotation(context, annotation, options = {}) {
+    const { geometry, style, type } = annotation;
+    const createCanvas = options.createCanvas || (() => globalScope.document.createElement("canvas"));
+    if (type === "blur") {
+      drawPixelatedBlur(context, annotation, createCanvas);
+      return;
+    }
+    context.save();
+    context.globalAlpha = style.opacity;
+    context.strokeStyle = style.color;
+    context.fillStyle = style.color;
+    context.lineWidth = style.thickness;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    if (type === "arrow") {
+      const angle = Math.atan2(geometry.y2 - geometry.y1, geometry.x2 - geometry.x1);
+      const head = Math.max(14, style.thickness * 3.2);
+      context.beginPath();
+      context.moveTo(geometry.x1, geometry.y1);
+      context.lineTo(geometry.x2, geometry.y2);
+      context.moveTo(geometry.x2, geometry.y2);
+      context.lineTo(geometry.x2 - head * Math.cos(angle - Math.PI / 6), geometry.y2 - head * Math.sin(angle - Math.PI / 6));
+      context.moveTo(geometry.x2, geometry.y2);
+      context.lineTo(geometry.x2 - head * Math.cos(angle + Math.PI / 6), geometry.y2 - head * Math.sin(angle + Math.PI / 6));
+      context.stroke();
+    } else if (type === "rectangle") {
+      context.strokeRect(geometry.x, geometry.y, geometry.width, geometry.height);
+    } else if (type === "circle") {
+      context.beginPath();
+      context.ellipse(
+        geometry.x + geometry.width / 2,
+        geometry.y + geometry.height / 2,
+        geometry.width / 2,
+        geometry.height / 2,
+        0, 0, Math.PI * 2,
+      );
+      context.stroke();
+    } else if (type === "pen" || type === "highlighter") {
+      drawPath(context, geometry.points);
+    } else if (type === "text") {
+      context.font = `700 ${style.fontSize}px Inter, ui-sans-serif, sans-serif`;
+      context.textBaseline = "top";
+      context.fillText(geometry.text, geometry.x, geometry.y);
+    }
+    context.restore();
+  }
+
+  function drawAnnotations(context, document, region, options = {}) {
+    for (const command of buildAnnotationCommands(document, region)) {
+      drawAnnotation(context, command.annotation, options);
     }
   }
 
@@ -124,6 +238,12 @@
       width: input.document.width,
       height: documentHeight,
     }));
+    drawAnnotations(context, input.document, {
+      left: 0,
+      top: documentTop,
+      width: input.document.width,
+      height: documentHeight,
+    }, { createCanvas: input.createCanvas });
     return canvas;
   }
 
@@ -158,6 +278,7 @@
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, size.width, size.height);
       drawCommands(context, source, buildRenderCommands(documentValue));
+      drawAnnotations(context, documentValue, undefined, { createCanvas });
       const blob = await canvasToBlob(canvas, mimeType, quality);
       canvas.width = 1;
       canvas.height = 1;
@@ -178,7 +299,10 @@
   Object.defineProperty(globalScope, "Scroll2PDFEditorRenderer", {
     value: Object.freeze({
       buildRenderCommands,
+      buildAnnotationCommands,
       createRenderer,
+      drawAnnotation,
+      drawAnnotations,
       drawCommands,
       getVisibleTileIndexes,
       renderPreviewTile,

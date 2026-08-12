@@ -78,7 +78,15 @@
         <div id="editor-viewport" class="editor-viewport" aria-label="Editable Scroll2PDF image" hidden>
           <div id="editor-document" class="editor-document">
             <div id="editor-tile-layer" class="editor-tile-layer"></div>
-            <div id="editor-interaction-layer" class="editor-interaction-layer" tabindex="0" aria-label="Image editing canvas"></div>
+            <div id="editor-interaction-layer" class="editor-interaction-layer" tabindex="0" aria-label="Image editing canvas">
+              <div id="editor-selection" class="editor-selection" hidden>
+                <span class="editor-selection__handle editor-selection__handle--nw" data-resize-handle="nw" aria-hidden="true"></span>
+                <span class="editor-selection__handle editor-selection__handle--ne" data-resize-handle="ne" aria-hidden="true"></span>
+                <span class="editor-selection__handle editor-selection__handle--sw" data-resize-handle="sw" aria-hidden="true"></span>
+                <span class="editor-selection__handle editor-selection__handle--se" data-resize-handle="se" aria-hidden="true"></span>
+              </div>
+              <textarea id="editor-text-input" class="editor-text-input" rows="2" aria-label="Annotation text" placeholder="Type a note…" hidden></textarea>
+            </div>
           </div>
         </div>
         <img id="result-image" alt="Full-page Scroll2PDF capture">

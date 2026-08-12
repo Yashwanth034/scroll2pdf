@@ -119,10 +119,51 @@ body {
 }
 
 .editor-context {
+  display: flex;
+  align-items: center;
+  gap: 18px;
   min-height: 42px;
   padding: 7px clamp(12px, 2vw, 28px);
+  overflow-x: auto;
   border-top: 1px solid rgba(42, 61, 89, 0.7);
   background: rgba(8, 17, 31, 0.72);
+}
+
+.editor-context__control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.editor-context__control input[type="color"] {
+  width: 30px;
+  height: 26px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--ink-850);
+}
+
+.editor-context__control input[type="range"] {
+  width: 96px;
+  accent-color: var(--blue);
+}
+
+.editor-context__delete {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 100, 120, 0.45);
+  border-radius: 7px;
+  background: rgba(255, 77, 103, 0.1);
+  color: #ff9eaa;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .brand-lockup {
@@ -287,6 +328,56 @@ main {
   z-index: 1;
   cursor: default;
   touch-action: none;
+}
+
+.editor-interaction-layer[data-tool="arrow"],
+.editor-interaction-layer[data-tool="rectangle"],
+.editor-interaction-layer[data-tool="circle"],
+.editor-interaction-layer[data-tool="pen"],
+.editor-interaction-layer[data-tool="highlighter"],
+.editor-interaction-layer[data-tool="blur"] { cursor: crosshair; }
+
+.editor-interaction-layer[data-tool="text"] { cursor: text; }
+
+.editor-selection {
+  position: absolute;
+  z-index: 2;
+  border: 1px solid #69a2ff;
+  background: rgba(78, 136, 247, 0.06);
+  box-shadow: 0 0 0 1px rgba(8, 17, 31, 0.65);
+  cursor: move;
+  pointer-events: none;
+}
+
+.editor-selection__handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #071224;
+  border-radius: 3px;
+  background: var(--blue);
+  pointer-events: auto;
+}
+
+.editor-selection__handle--nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.editor-selection__handle--ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.editor-selection__handle--sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.editor-selection__handle--se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+
+.editor-text-input {
+  position: absolute;
+  z-index: 3;
+  width: min(320px, 70%);
+  min-height: 74px;
+  padding: 8px 10px;
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  outline: 0;
+  background: rgba(8, 17, 31, 0.93);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38);
+  font-family: inherit;
+  font-weight: 700;
+  resize: both;
 }
 
 .editor-interaction-layer:focus-visible {

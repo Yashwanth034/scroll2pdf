@@ -132,6 +132,90 @@ test("editor history keeps only the configured number of reversible commands", (
   assert.equal(session.getState().canUndo, false);
 });
 
+test("annotation creation normalizes geometry and applies tool-specific defaults", () => {
+  const core = loadCore();
+  const document = core.createDocument({ width: 800, height: 1200, mimeType: "image/png" });
+  const rectangle = core.createAnnotation({
+    id: "rectangle-1",
+    type: "rectangle",
+    geometry: { x: 420, y: 360, width: -120, height: -80 },
+  }, document);
+  const highlighter = core.createAnnotation({
+    id: "highlighter-1",
+    type: "highlighter",
+    geometry: { points: [{ x: 10, y: 20 }, { x: 90, y: 100 }] },
+  }, document);
+
+  assert.equal(JSON.stringify(rectangle), JSON.stringify({
+    id: "rectangle-1",
+    type: "rectangle",
+    geometry: { x: 300, y: 280, width: 120, height: 80 },
+    style: { color: "#ff4d67", thickness: 6, opacity: 1, fontSize: 32, blur: 12 },
+  }));
+  assert.equal(highlighter.style.color, "#ffe066");
+  assert.equal(highlighter.style.thickness, 28);
+  assert.equal(highlighter.style.opacity, 0.4);
+  assert.equal(Object.isFrozen(rectangle), true);
+});
+
+test("annotation edits stay immutable and support move resize restyle and delete", () => {
+  const core = loadCore();
+  const original = core.createDocument({ width: 800, height: 1200, mimeType: "image/png" });
+  const arrow = core.createAnnotation({
+    id: "arrow-1",
+    type: "arrow",
+    geometry: { x1: 100, y1: 120, x2: 240, y2: 260 },
+  }, original);
+  const withArrow = core.appendAnnotation(original, arrow);
+  const moved = core.moveAnnotation(withArrow, "arrow-1", 30, -20);
+  const resized = core.resizeAnnotation(moved, "arrow-1", {
+    x: 50, y: 60, width: 300, height: 200,
+  });
+  const styled = core.restyleAnnotation(resized, "arrow-1", {
+    color: "#00d4ff", thickness: 10, opacity: 0.65,
+  });
+  const removed = core.removeAnnotation(styled, "arrow-1");
+
+  assert.equal(withArrow.annotations[0].geometry.x1, 100);
+  assert.equal(moved.annotations[0].geometry.x1, 130);
+  assert.equal(JSON.stringify(core.getAnnotationBounds(resized.annotations[0])), JSON.stringify({
+    x: 50, y: 60, width: 300, height: 200,
+  }));
+  assert.equal(styled.annotations[0].style.color, "#00d4ff");
+  assert.equal(styled.annotations[0].style.thickness, 10);
+  assert.equal(styled.annotations[0].style.opacity, 0.65);
+  assert.equal(removed.annotations.length, 0);
+});
+
+test("annotation hit testing returns the topmost visible object", () => {
+  const core = loadCore();
+  const document = core.createDocument({ width: 800, height: 1200, mimeType: "image/png" });
+  const lower = core.createAnnotation({
+    id: "lower", type: "rectangle", geometry: { x: 100, y: 100, width: 200, height: 160 },
+  }, document);
+  const upper = core.createAnnotation({
+    id: "upper", type: "circle", geometry: { x: 150, y: 130, width: 180, height: 180 },
+  }, document);
+  const annotated = core.replaceAnnotations(document, [lower, upper]);
+
+  assert.equal(core.hitTestAnnotations(annotated.annotations, { x: 210, y: 180 }, 8).id, "upper");
+  assert.equal(core.hitTestAnnotations(annotated.annotations, { x: 105, y: 105 }, 8).id, "lower");
+  assert.equal(core.hitTestAnnotations(annotated.annotations, { x: 700, y: 900 }, 8), null);
+});
+
+test("freehand simplification preserves endpoints while reducing dense points", () => {
+  const core = loadCore();
+  const points = Array.from({ length: 101 }, (_, index) => ({
+    x: index,
+    y: index % 2 === 0 ? 10 : 10.2,
+  }));
+  const simplified = core.simplifyPath(points, 1);
+
+  assert.equal(JSON.stringify(simplified[0]), JSON.stringify(points[0]));
+  assert.equal(JSON.stringify(simplified[simplified.length - 1]), JSON.stringify(points[points.length - 1]));
+  assert.ok(simplified.length < 10, `Expected a compact path, got ${simplified.length} points.`);
+});
+
 test("renderer maps a document region to exact source rows", () => {
   const sandbox = loadRenderer();
   const document = sandbox.Scroll2PDFEditorCore.createDocument({
@@ -154,6 +238,31 @@ test("renderer maps a document region to exact source rows", () => {
     destinationWidth: 800,
     destinationHeight: 400,
   }]));
+});
+
+test("renderer keeps annotation creation order and culls annotations outside a tile", () => {
+  const sandbox = loadRenderer();
+  const core = sandbox.Scroll2PDFEditorCore;
+  const base = core.createDocument({ width: 800, height: 1200, mimeType: "image/png" });
+  const document = core.replaceAnnotations(base, [
+    core.createAnnotation({
+      id: "rectangle-1", type: "rectangle", geometry: { x: 50, y: 100, width: 200, height: 100 },
+    }, base),
+    core.createAnnotation({
+      id: "text-1", type: "text", geometry: { x: 80, y: 160, text: "Second" },
+    }, base),
+    core.createAnnotation({
+      id: "offscreen", type: "circle", geometry: { x: 50, y: 900, width: 100, height: 100 },
+    }, base),
+  ]);
+
+  const commands = sandbox.Scroll2PDFEditorRenderer.buildAnnotationCommands(document, {
+    left: 0, top: 0, width: 800, height: 400,
+  });
+  assert.equal(JSON.stringify(commands.map((command) => [command.kind, command.annotation.id])), JSON.stringify([
+    ["annotation", "rectangle-1"],
+    ["annotation", "text-1"],
+  ]));
 });
 
 test("renderer exports the requested image type and caches only an unchanged revision", async () => {
