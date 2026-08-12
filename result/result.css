@@ -380,6 +380,79 @@ main {
   resize: both;
 }
 
+.editor-structure-draft {
+  position: absolute;
+  z-index: 4;
+  border: 2px solid var(--blue);
+  border-radius: 4px;
+  background: rgba(78, 136, 247, 0.16);
+  box-shadow: 0 0 0 99999px rgba(3, 8, 16, 0.42);
+  pointer-events: none;
+}
+
+.editor-structure-draft[data-kind="cut"] {
+  border-color: #ff6680;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(255, 77, 103, 0.26) 0 10px,
+    rgba(255, 77, 103, 0.1) 10px 20px
+  );
+}
+
+.editor-structure-draft[data-kind="insert"] {
+  height: 3px !important;
+  border: 0;
+  border-radius: 99px;
+  background: var(--mint);
+  box-shadow: 0 0 0 1px rgba(8, 17, 31, 0.85), 0 0 16px rgba(126, 217, 181, 0.55);
+}
+
+.editor-structure-draft__label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: rgba(8, 17, 31, 0.9);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.editor-structure-draft[data-kind="insert"] .editor-structure-draft__label {
+  top: 8px;
+  color: var(--mint);
+}
+
+.editor-context__number {
+  width: 92px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--ink-850);
+  color: var(--text);
+  font: inherit;
+}
+
+.editor-context__action {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--ink-850);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.editor-context__action--apply {
+  border-color: rgba(120, 169, 255, 0.7);
+  background: rgba(78, 136, 247, 0.22);
+}
+
 .editor-interaction-layer:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: -2px;

@@ -216,6 +216,100 @@ test("freehand simplification preserves endpoints while reducing dense points", 
   assert.ok(simplified.length < 10, `Expected a compact path, got ${simplified.length} points.`);
 });
 
+test("structural crop slices source and blank segments at exact coordinates", () => {
+  const core = loadCore();
+  const source = core.createDocument({ width: 100, height: 300, mimeType: "image/png" });
+  const inserted = core.insertSpace(source, 100, 50);
+  const cropped = core.cropDocument(inserted, { x: 10, y: 50, width: 80, height: 220 });
+
+  assert.equal(JSON.stringify({ width: cropped.width, height: cropped.height, segments: cropped.segments }), JSON.stringify({
+    width: 80,
+    height: 220,
+    segments: [
+      { kind: "source", sourceX: 10, sourceY: 50, width: 80, height: 50 },
+      { kind: "blank", width: 80, height: 50 },
+      { kind: "source", sourceX: 10, sourceY: 100, width: 80, height: 120 },
+    ],
+  }));
+});
+
+test("horizontal cut closes the exact gap and insert adds one white segment", () => {
+  const core = loadCore();
+  const source = core.createDocument({ width: 100, height: 300, mimeType: "image/png" });
+  const cut = core.cutDocument(source, 80, 140);
+  const inserted = core.insertSpace(cut, 120, 45);
+
+  assert.equal(JSON.stringify({ height: cut.height, segments: cut.segments }), JSON.stringify({
+    height: 240,
+    segments: [
+      { kind: "source", sourceX: 0, sourceY: 0, width: 100, height: 80 },
+      { kind: "source", sourceX: 0, sourceY: 140, width: 100, height: 160 },
+    ],
+  }));
+  assert.equal(inserted.height, 285);
+  assert.equal(JSON.stringify(inserted.segments), JSON.stringify([
+    { kind: "source", sourceX: 0, sourceY: 0, width: 100, height: 80 },
+    { kind: "source", sourceX: 0, sourceY: 140, width: 100, height: 40 },
+    { kind: "blank", width: 100, height: 45 },
+    { kind: "source", sourceX: 0, sourceY: 180, width: 100, height: 120 },
+  ]));
+});
+
+test("structural edits reject unsafe results and report bounded insertion capacity", () => {
+  const core = loadCore();
+  const source = core.createDocument({ width: 1000, height: 2500, mimeType: "image/png" });
+
+  assert.throws(() => core.cropDocument(source, { x: 0, y: 0, width: 40, height: 200 }), /at least 80/i);
+  assert.throws(() => core.cutDocument(source, 0, 2500), /positive height|entire image/i);
+  assert.equal(core.getMaximumInsertHeight(source), 5000);
+  assert.throws(() => core.insertSpace(source, 100, 5001), /maximum|5,000/i);
+});
+
+test("crop translates and clips annotations while removing outside objects", () => {
+  const core = loadCore();
+  const source = core.createDocument({ width: 400, height: 500, mimeType: "image/png" });
+  const crossing = core.createAnnotation({
+    id: "crossing", type: "rectangle", geometry: { x: 50, y: 80, width: 180, height: 180 },
+  }, source);
+  const outside = core.createAnnotation({
+    id: "outside", type: "circle", geometry: { x: 300, y: 350, width: 40, height: 40 },
+  }, source);
+  const cropped = core.cropDocument(core.replaceAnnotations(source, [crossing, outside]), {
+    x: 100, y: 100, width: 200, height: 220,
+  });
+
+  assert.equal(cropped.annotations.length, 1);
+  assert.equal(cropped.annotations[0].id, "crossing");
+  assert.equal(JSON.stringify(core.getAnnotationBounds(cropped.annotations[0])), JSON.stringify({
+    x: 0, y: 0, width: 130, height: 160,
+  }));
+});
+
+test("cut and insert preserve crossing annotations as one grouped fragmented object", () => {
+  const core = loadCore();
+  const source = core.createDocument({ width: 400, height: 500, mimeType: "image/png" });
+  const rectangle = core.createAnnotation({
+    id: "grouped", type: "rectangle", geometry: { x: 80, y: 70, width: 120, height: 120 },
+  }, source);
+  const annotated = core.appendAnnotation(source, rectangle);
+  const cut = core.cutDocument(annotated, 100, 140);
+  const inserted = core.insertSpace(annotated, 100, 60);
+
+  assert.equal(cut.annotations.length, 1);
+  assert.equal(cut.annotations[0].id, "grouped");
+  assert.equal(cut.annotations[0].fragments.length, 2);
+  assert.equal(JSON.stringify(cut.annotations[0].fragments.map((fragment) => fragment.clip)), JSON.stringify([
+    { x: 80, y: 70, width: 120, height: 30 },
+    { x: 80, y: 100, width: 120, height: 50 },
+  ]));
+  assert.equal(inserted.annotations[0].fragments.length, 2);
+  assert.equal(JSON.stringify(inserted.annotations[0].fragments.map((fragment) => fragment.clip)), JSON.stringify([
+    { x: 80, y: 70, width: 120, height: 30 },
+    { x: 80, y: 160, width: 120, height: 90 },
+  ]));
+  assert.equal(core.removeAnnotation(cut, "grouped").annotations.length, 0);
+});
+
 test("renderer maps a document region to exact source rows", () => {
   const sandbox = loadRenderer();
   const document = sandbox.Scroll2PDFEditorCore.createDocument({
@@ -262,6 +356,38 @@ test("renderer keeps annotation creation order and culls annotations outside a t
   assert.equal(JSON.stringify(commands.map((command) => [command.kind, command.annotation.id])), JSON.stringify([
     ["annotation", "rectangle-1"],
     ["annotation", "text-1"],
+  ]));
+});
+
+test("renderer exposes both clipped pieces of a structurally split annotation", () => {
+  const sandbox = loadRenderer();
+  const core = sandbox.Scroll2PDFEditorCore;
+  const source = core.createDocument({ width: 400, height: 500, mimeType: "image/png" });
+  const rectangle = core.createAnnotation({
+    id: "split", type: "rectangle", geometry: { x: 80, y: 70, width: 120, height: 120 },
+  }, source);
+  const cut = core.cutDocument(core.appendAnnotation(source, rectangle), 100, 140);
+  const commands = sandbox.Scroll2PDFEditorRenderer.buildAnnotationCommands(cut);
+  const strokes = [];
+  const clips = [];
+  const context = {
+    save() {}, restore() {}, beginPath() {},
+    rect(...args) { clips.push(args); }, clip() {},
+    strokeRect(...args) { strokes.push(args); },
+    set globalAlpha(_) {}, set strokeStyle(_) {}, set fillStyle(_) {},
+    set lineWidth(_) {}, set lineCap(_) {}, set lineJoin(_) {},
+  };
+  sandbox.Scroll2PDFEditorRenderer.drawAnnotation(context, commands[0].annotation, {
+    createCanvas() { throw new Error("not used"); },
+  });
+
+  assert.equal(commands.length, 1);
+  assert.equal(commands[0].annotation.id, "split");
+  assert.equal(core.getAnnotationPieces(commands[0].annotation).length, 2);
+  assert.equal(strokes.length, 2);
+  assert.equal(JSON.stringify(clips), JSON.stringify([
+    [80, 70, 120, 30],
+    [80, 100, 120, 50],
   ]));
 });
 

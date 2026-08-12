@@ -5,6 +5,10 @@
 
   const DEFAULT_MAX_COMMANDS = 100;
   const DEFAULT_MAX_HISTORY_BYTES = 64 * 1024 * 1024;
+  const MAX_BITMAP_DIMENSION = 32767;
+  const MAX_BITMAP_AREA = 160000000;
+  const MIN_CROP_SIZE = 80;
+  const MAX_INSERT_HEIGHT = 5000;
   const ANNOTATION_TYPES = new Set([
     "arrow", "rectangle", "circle", "pen", "highlighter", "text", "blur",
   ]);
@@ -135,9 +139,8 @@
     });
   }
 
-  function getAnnotationBounds(annotation) {
-    const geometry = annotation?.geometry || {};
-    if (annotation?.type === "arrow") {
+  function getGeometryBounds(type, geometry = {}, style = {}) {
+    if (type === "arrow") {
       return {
         x: Math.min(geometry.x1, geometry.x2),
         y: Math.min(geometry.y1, geometry.y2),
@@ -145,7 +148,7 @@
         height: Math.abs(geometry.y2 - geometry.y1),
       };
     }
-    if (annotation?.type === "pen" || annotation?.type === "highlighter") {
+    if (type === "pen" || type === "highlighter") {
       const points = geometry.points || [];
       if (!points.length) return { x: 0, y: 0, width: 0, height: 0 };
       const xs = points.map((point) => point.x);
@@ -154,8 +157,8 @@
       const y = Math.min(...ys);
       return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
     }
-    if (annotation?.type === "text") {
-      const fontSize = annotation.style?.fontSize || 32;
+    if (type === "text") {
+      const fontSize = style.fontSize || 32;
       return {
         x: geometry.x,
         y: geometry.y,
@@ -169,6 +172,26 @@
       width: Math.max(0, finite(geometry.width)),
       height: Math.max(0, finite(geometry.height)),
     };
+  }
+
+  function unionRects(rectangles) {
+    if (!rectangles.length) return { x: 0, y: 0, width: 0, height: 0 };
+    const left = Math.min(...rectangles.map((rect) => rect.x));
+    const top = Math.min(...rectangles.map((rect) => rect.y));
+    const right = Math.max(...rectangles.map((rect) => rect.x + rect.width));
+    const bottom = Math.max(...rectangles.map((rect) => rect.y + rect.height));
+    return { x: left, y: top, width: right - left, height: bottom - top };
+  }
+
+  function getAnnotationPieces(annotation) {
+    if (Array.isArray(annotation?.fragments) && annotation.fragments.length) return annotation.fragments;
+    return annotation ? [{ geometry: annotation.geometry, clip: null }] : [];
+  }
+
+  function getAnnotationBounds(annotation) {
+    return unionRects(getAnnotationPieces(annotation).map((piece) => (
+      piece.clip || getGeometryBounds(annotation.type, piece.geometry, annotation.style)
+    )));
   }
 
   function replaceAnnotation(document, id, transform) {
@@ -190,15 +213,18 @@
     return replaceAnnotations(document, document.annotations.filter((annotation) => annotation.id !== id));
   }
 
-  function translateGeometry(annotation, dx, dy) {
-    const geometry = annotation.geometry;
-    if (annotation.type === "arrow") {
+  function translateGeometry(type, geometry, dx, dy) {
+    if (type === "arrow") {
       return { x1: geometry.x1 + dx, y1: geometry.y1 + dy, x2: geometry.x2 + dx, y2: geometry.y2 + dy };
     }
-    if (annotation.type === "pen" || annotation.type === "highlighter") {
+    if (type === "pen" || type === "highlighter") {
       return { points: geometry.points.map((point) => ({ x: point.x + dx, y: point.y + dy })) };
     }
     return { ...geometry, x: geometry.x + dx, y: geometry.y + dy };
+  }
+
+  function translateRect(rect, dx, dy) {
+    return { x: rect.x + dx, y: rect.y + dy, width: rect.width, height: rect.height };
   }
 
   function moveAnnotation(document, id, dxValue, dyValue) {
@@ -206,41 +232,76 @@
     const dy = finite(dyValue);
     return replaceAnnotation(document, id, (annotation) => deepFreeze({
       ...annotation,
-      geometry: translateGeometry(annotation, dx, dy),
+      geometry: translateGeometry(annotation.type, annotation.geometry, dx, dy),
+      ...(annotation.fragments ? {
+        fragments: annotation.fragments.map((fragment) => ({
+          geometry: translateGeometry(annotation.type, fragment.geometry, dx, dy),
+          clip: fragment.clip ? translateRect(fragment.clip, dx, dy) : null,
+        })),
+      } : {}),
     }));
   }
 
-  function resizeGeometry(annotation, nextBounds) {
-    const current = getAnnotationBounds(annotation);
-    const next = {
-      x: finite(nextBounds.x),
-      y: finite(nextBounds.y),
-      width: Math.max(1, finite(nextBounds.width, 1)),
-      height: Math.max(1, finite(nextBounds.height, 1)),
-    };
+  function scaleGeometry(type, geometry, current, next) {
     const scaleX = current.width ? next.width / current.width : 1;
     const scaleY = current.height ? next.height / current.height : 1;
     const mapPoint = (point) => ({
       x: next.x + (point.x - current.x) * scaleX,
       y: next.y + (point.y - current.y) * scaleY,
     });
-    if (annotation.type === "arrow") {
-      const first = mapPoint({ x: annotation.geometry.x1, y: annotation.geometry.y1 });
-      const second = mapPoint({ x: annotation.geometry.x2, y: annotation.geometry.y2 });
+    if (type === "arrow") {
+      const first = mapPoint({ x: geometry.x1, y: geometry.y1 });
+      const second = mapPoint({ x: geometry.x2, y: geometry.y2 });
       return { x1: first.x, y1: first.y, x2: second.x, y2: second.y };
     }
-    if (annotation.type === "pen" || annotation.type === "highlighter") {
-      return { points: annotation.geometry.points.map(mapPoint) };
+    if (type === "pen" || type === "highlighter") {
+      return { points: geometry.points.map(mapPoint) };
     }
-    if (annotation.type === "text") return { ...annotation.geometry, x: next.x, y: next.y };
-    return next;
+    if (type === "text") {
+      const point = mapPoint({ x: geometry.x, y: geometry.y });
+      return { ...geometry, x: point.x, y: point.y };
+    }
+    const topLeft = mapPoint({ x: geometry.x, y: geometry.y });
+    return {
+      ...geometry,
+      x: topLeft.x,
+      y: topLeft.y,
+      width: geometry.width * scaleX,
+      height: geometry.height * scaleY,
+    };
+  }
+
+  function scaleRect(rect, current, next) {
+    const scaleX = current.width ? next.width / current.width : 1;
+    const scaleY = current.height ? next.height / current.height : 1;
+    return {
+      x: next.x + (rect.x - current.x) * scaleX,
+      y: next.y + (rect.y - current.y) * scaleY,
+      width: rect.width * scaleX,
+      height: rect.height * scaleY,
+    };
   }
 
   function resizeAnnotation(document, id, bounds) {
-    return replaceAnnotation(document, id, (annotation) => deepFreeze({
-      ...annotation,
-      geometry: resizeGeometry(annotation, bounds),
-    }));
+    return replaceAnnotation(document, id, (annotation) => {
+      const current = getAnnotationBounds(annotation);
+      const next = {
+        x: finite(bounds.x),
+        y: finite(bounds.y),
+        width: Math.max(1, finite(bounds.width, 1)),
+        height: Math.max(1, finite(bounds.height, 1)),
+      };
+      return deepFreeze({
+        ...annotation,
+        geometry: scaleGeometry(annotation.type, annotation.geometry, current, next),
+        ...(annotation.fragments ? {
+          fragments: annotation.fragments.map((fragment) => ({
+            geometry: scaleGeometry(annotation.type, fragment.geometry, current, next),
+            clip: fragment.clip ? scaleRect(fragment.clip, current, next) : null,
+          })),
+        } : {}),
+      });
+    });
   }
 
   function restyleAnnotation(document, id, style) {
@@ -259,24 +320,26 @@
   }
 
   function containsPoint(annotation, point, tolerance) {
-    const bounds = getAnnotationBounds(annotation);
-    const padded = {
-      x: bounds.x - tolerance,
-      y: bounds.y - tolerance,
-      width: bounds.width + tolerance * 2,
-      height: bounds.height + tolerance * 2,
-    };
-    if (point.x < padded.x || point.y < padded.y || point.x > padded.x + padded.width || point.y > padded.y + padded.height) return false;
-    if (annotation.type === "arrow") {
-      return distanceToSegment(point,
-        { x: annotation.geometry.x1, y: annotation.geometry.y1 },
-        { x: annotation.geometry.x2, y: annotation.geometry.y2 }) <= tolerance + annotation.style.thickness / 2;
-    }
-    if (annotation.type === "pen" || annotation.type === "highlighter") {
-      return annotation.geometry.points.some((item, index, points) => index > 0
-        && distanceToSegment(point, points[index - 1], item) <= tolerance + annotation.style.thickness / 2);
-    }
-    return true;
+    return getAnnotationPieces(annotation).some((piece) => {
+      const bounds = piece.clip || getGeometryBounds(annotation.type, piece.geometry, annotation.style);
+      const padded = {
+        x: bounds.x - tolerance,
+        y: bounds.y - tolerance,
+        width: bounds.width + tolerance * 2,
+        height: bounds.height + tolerance * 2,
+      };
+      if (point.x < padded.x || point.y < padded.y || point.x > padded.x + padded.width || point.y > padded.y + padded.height) return false;
+      if (annotation.type === "arrow") {
+        return distanceToSegment(point,
+          { x: piece.geometry.x1, y: piece.geometry.y1 },
+          { x: piece.geometry.x2, y: piece.geometry.y2 }) <= tolerance + annotation.style.thickness / 2;
+      }
+      if (annotation.type === "pen" || annotation.type === "highlighter") {
+        return piece.geometry.points.some((item, index, points) => index > 0
+          && distanceToSegment(point, points[index - 1], item) <= tolerance + annotation.style.thickness / 2);
+      }
+      return true;
+    });
   }
 
   function hitTestAnnotations(annotations, point, tolerance = 6) {
@@ -307,6 +370,167 @@
     const left = simplifyPath(points.slice(0, splitIndex + 1), tolerance);
     const right = simplifyPath(points.slice(splitIndex), tolerance);
     return [...left.slice(0, -1), ...right];
+  }
+
+  function intersectRects(first, second) {
+    const left = Math.max(first.x, second.x);
+    const top = Math.max(first.y, second.y);
+    const right = Math.min(first.x + first.width, second.x + second.width);
+    const bottom = Math.min(first.y + first.height, second.y + second.height);
+    if (right <= left || bottom <= top) return null;
+    return { x: left, y: top, width: right - left, height: bottom - top };
+  }
+
+  function mergeSegments(segments) {
+    const merged = [];
+    for (const segment of segments.filter((item) => item.height > 0)) {
+      const previous = merged[merged.length - 1];
+      const canMergeBlank = previous?.kind === "blank" && segment.kind === "blank" && previous.width === segment.width;
+      const canMergeSource = previous?.kind === "source" && segment.kind === "source"
+        && previous.sourceX === segment.sourceX
+        && previous.width === segment.width
+        && previous.sourceY + previous.height === segment.sourceY;
+      if (canMergeBlank || canMergeSource) previous.height += segment.height;
+      else merged.push({ ...segment });
+    }
+    return merged;
+  }
+
+  function sliceSegments(document, rect) {
+    const segments = [];
+    let destinationY = 0;
+    for (const segment of document.segments) {
+      const segmentRect = { x: 0, y: destinationY, width: document.width, height: segment.height };
+      const visible = intersectRects(segmentRect, rect);
+      if (visible) {
+        if (segment.kind === "source") {
+          segments.push({
+            kind: "source",
+            sourceX: segment.sourceX + rect.x,
+            sourceY: segment.sourceY + visible.y - destinationY,
+            width: rect.width,
+            height: visible.height,
+          });
+        } else {
+          segments.push({ kind: "blank", width: rect.width, height: visible.height });
+        }
+      }
+      destinationY += segment.height;
+    }
+    return segments;
+  }
+
+  function transformAnnotations(document, mappings) {
+    const annotations = [];
+    for (const annotation of document.annotations) {
+      const fragments = [];
+      for (const piece of getAnnotationPieces(annotation)) {
+        const pieceBounds = getGeometryBounds(annotation.type, piece.geometry, annotation.style);
+        const visibleBounds = piece.clip ? intersectRects(pieceBounds, piece.clip) : pieceBounds;
+        if (!visibleBounds) continue;
+        for (const mapping of mappings) {
+          const visible = intersectRects(visibleBounds, mapping.region);
+          if (!visible) continue;
+          fragments.push({
+            geometry: translateGeometry(annotation.type, piece.geometry, mapping.dx, mapping.dy),
+            clip: translateRect(visible, mapping.dx, mapping.dy),
+          });
+        }
+      }
+      if (!fragments.length) continue;
+      annotations.push({
+        ...annotation,
+        geometry: fragments[0].geometry,
+        fragments,
+      });
+    }
+    return annotations;
+  }
+
+  function validateDocumentSize(width, height) {
+    if (width < 1 || height < 1) throw new Error("The edited image must retain a positive height and width.");
+    if (width > MAX_BITMAP_DIMENSION || height > MAX_BITMAP_DIMENSION || width * height > MAX_BITMAP_AREA) {
+      throw new Error("This edit would exceed the browser's maximum image dimensions.");
+    }
+  }
+
+  function cropDocument(document, rectValue = {}) {
+    const left = clamp(Math.floor(finite(rectValue.x)), 0, document.width);
+    const top = clamp(Math.floor(finite(rectValue.y)), 0, document.height);
+    const right = clamp(Math.ceil(finite(rectValue.x) + finite(rectValue.width)), 0, document.width);
+    const bottom = clamp(Math.ceil(finite(rectValue.y) + finite(rectValue.height)), 0, document.height);
+    const rect = {
+      x: Math.min(left, right),
+      y: Math.min(top, bottom),
+      width: Math.abs(right - left),
+      height: Math.abs(bottom - top),
+    };
+    if (rect.width < MIN_CROP_SIZE || rect.height < MIN_CROP_SIZE) {
+      throw new Error(`Crop selections must be at least ${MIN_CROP_SIZE} × ${MIN_CROP_SIZE} pixels.`);
+    }
+    validateDocumentSize(rect.width, rect.height);
+    return freezeDocument({
+      ...document,
+      width: rect.width,
+      height: rect.height,
+      segments: mergeSegments(sliceSegments(document, rect)),
+      annotations: transformAnnotations(document, [{ region: rect, dx: -rect.x, dy: -rect.y }]),
+    });
+  }
+
+  function cutDocument(document, startValue, endValue) {
+    const start = clamp(Math.floor(Math.min(finite(startValue), finite(endValue))), 0, document.height);
+    const end = clamp(Math.ceil(Math.max(finite(startValue), finite(endValue))), 0, document.height);
+    const removedHeight = end - start;
+    if (removedHeight < 1) throw new Error("Select a horizontal section to remove.");
+    const height = document.height - removedHeight;
+    if (height < 1) throw new Error("Removing the entire image would leave no positive height.");
+    validateDocumentSize(document.width, height);
+    const topRect = { x: 0, y: 0, width: document.width, height: start };
+    const bottomRect = { x: 0, y: end, width: document.width, height: document.height - end };
+    return freezeDocument({
+      ...document,
+      height,
+      segments: mergeSegments([
+        ...sliceSegments(document, topRect),
+        ...sliceSegments(document, bottomRect),
+      ]),
+      annotations: transformAnnotations(document, [
+        { region: topRect, dx: 0, dy: 0 },
+        { region: bottomRect, dx: 0, dy: -removedHeight },
+      ]),
+    });
+  }
+
+  function getMaximumInsertHeight(document) {
+    const dimensionRoom = MAX_BITMAP_DIMENSION - document.height;
+    const areaRoom = Math.floor(MAX_BITMAP_AREA / document.width) - document.height;
+    return Math.max(0, Math.min(MAX_INSERT_HEIGHT, dimensionRoom, areaRoom));
+  }
+
+  function insertSpace(document, yValue, heightValue) {
+    const y = clamp(Math.round(finite(yValue)), 0, document.height);
+    const height = Math.round(finite(heightValue));
+    const maximum = getMaximumInsertHeight(document);
+    if (height < 1 || height > maximum) {
+      throw new Error(`Inserted space must be between 1 and the current maximum of ${maximum.toLocaleString("en-US")} pixels.`);
+    }
+    validateDocumentSize(document.width, document.height + height);
+    const topRect = { x: 0, y: 0, width: document.width, height: y };
+    const bottomRect = { x: 0, y, width: document.width, height: document.height - y };
+    return freezeDocument({
+      ...document,
+      height: document.height + height,
+      segments: mergeSegments([
+        ...sliceSegments(document, topRect),
+        { kind: "blank", width: document.width, height },
+        ...sliceSegments(document, bottomRect),
+      ]),
+      annotations: transformAnnotations(document, [
+        { region: topRect, dx: 0, dy: 0 },
+        { region: bottomRect, dx: 0, dy: height },
+      ]),
+    });
   }
 
   function previewPointToDocument(point, bounds, scaleValue, document) {
@@ -407,10 +631,15 @@
     value: Object.freeze({
       createDocument,
       appendAnnotation,
+      cropDocument,
+      cutDocument,
       createAnnotation,
       createSession,
       getAnnotationBounds,
+      getAnnotationPieces,
+      getMaximumInsertHeight,
       hitTestAnnotations,
+      insertSpace,
       moveAnnotation,
       previewPointToDocument,
       removeAnnotation,

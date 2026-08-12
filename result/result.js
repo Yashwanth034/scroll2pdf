@@ -125,6 +125,7 @@
             copy,
             document: editorDocument,
             download,
+            dimensions,
             image,
             interactionLayer: editorInteractionLayer,
             status,

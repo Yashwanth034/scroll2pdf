@@ -146,7 +146,7 @@
     scratch.height = 1;
   }
 
-  function drawAnnotation(context, annotation, options = {}) {
+  function drawAnnotationPiece(context, annotation, options = {}) {
     const { geometry, style, type } = annotation;
     const createCanvas = options.createCanvas || (() => globalScope.document.createElement("canvas"));
     if (type === "blur") {
@@ -191,6 +191,20 @@
       context.fillText(geometry.text, geometry.x, geometry.y);
     }
     context.restore();
+  }
+
+  function drawAnnotation(context, annotation, options = {}) {
+    const pieces = globalScope.Scroll2PDFEditorCore.getAnnotationPieces(annotation);
+    for (const piece of pieces) {
+      context.save();
+      if (piece.clip) {
+        context.beginPath();
+        context.rect(piece.clip.x, piece.clip.y, piece.clip.width, piece.clip.height);
+        context.clip();
+      }
+      drawAnnotationPiece(context, { ...annotation, geometry: piece.geometry, fragments: undefined }, options);
+      context.restore();
+    }
   }
 
   function drawAnnotations(context, document, region, options = {}) {

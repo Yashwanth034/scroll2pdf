@@ -37,6 +37,8 @@
     const resetButton = elements.toolbar.querySelector("#editor-reset");
     const contextPanel = elements.toolbar.querySelector("#editor-context");
     const selectionBox = elements.interactionLayer.querySelector("#editor-selection");
+    const structureBox = elements.interactionLayer.querySelector("#editor-structure-draft");
+    const structureLabel = elements.interactionLayer.querySelector("#editor-structure-label");
     const textInput = elements.interactionLayer.querySelector("#editor-text-input");
     const mountedTiles = new Map();
     const cleanupListeners = [];
@@ -44,6 +46,7 @@
     let activeTool = "select";
     let selectedId = null;
     let previewDocument = null;
+    let structureDraft = null;
     let gesture = null;
     let disposed = false;
     let displayScale = 1;
@@ -133,6 +136,52 @@
       selectionBox.hidden = false;
     }
 
+    function updateDocumentMetadata() {
+      const documentState = session.getState().document;
+      elements.interactionLayer.dataset.documentSize = `${documentState.width}x${documentState.height}`;
+      if (elements.dimensions) {
+        elements.dimensions.textContent = elements.dimensions.textContent.replace(
+          /^[^·]+px/,
+          `${documentState.width.toLocaleString("en-US")} × ${documentState.height.toLocaleString("en-US")} px`,
+        );
+      }
+    }
+
+    function renderStructureDraft() {
+      if (!structureDraft) {
+        structureBox.hidden = true;
+        return;
+      }
+      const documentState = session.getState().document;
+      structureBox.dataset.kind = structureDraft.kind;
+      if (structureDraft.kind === "crop") {
+        Object.assign(structureBox.style, {
+          left: `${structureDraft.x * displayScale}px`,
+          top: `${structureDraft.y * displayScale}px`,
+          width: `${structureDraft.width * displayScale}px`,
+          height: `${structureDraft.height * displayScale}px`,
+        });
+        structureLabel.textContent = `${Math.round(structureDraft.width)} × ${Math.round(structureDraft.height)} px crop`;
+      } else if (structureDraft.kind === "cut") {
+        Object.assign(structureBox.style, {
+          left: "0px",
+          top: `${structureDraft.y * displayScale}px`,
+          width: `${documentState.width * displayScale}px`,
+          height: `${structureDraft.height * displayScale}px`,
+        });
+        structureLabel.textContent = `Remove ${Math.round(structureDraft.height)} px`;
+      } else {
+        Object.assign(structureBox.style, {
+          left: "0px",
+          top: `${structureDraft.y * displayScale}px`,
+          width: `${documentState.width * displayScale}px`,
+          height: "3px",
+        });
+        structureLabel.textContent = `Insert ${structureDraft.height} px here`;
+      }
+      structureBox.hidden = false;
+    }
+
     function refreshPreview(layout = false) {
       if (layout) {
         const documentState = getDocument();
@@ -147,6 +196,8 @@
       for (const index of [...mountedTiles.keys()]) removeTile(index);
       updateTiles();
       renderSelection();
+      renderStructureDraft();
+      updateDocumentMetadata();
     }
 
     function createControl(labelText, name, type, value, attributes = {}) {
@@ -173,6 +224,52 @@
     }
 
     function renderContext() {
+      if (["crop", "cut", "insert"].includes(activeTool)) {
+        const fragment = globalScope.document.createDocumentFragment();
+        const hint = globalScope.document.createElement("span");
+        hint.className = "editor-context__control";
+        hint.textContent = structureDraft
+          ? (activeTool === "insert" ? "Set the blank-space height, then apply." : "Review this draft, then apply or cancel.")
+          : (activeTool === "crop" ? "Drag a rectangle over the area to keep." : activeTool === "cut" ? "Drag vertically over the full-width section to remove." : "Click the horizontal line where blank space should begin.");
+        fragment.append(hint);
+        if (structureDraft?.kind === "insert") {
+          const maximum = core.getMaximumInsertHeight(session.getState().document);
+          const label = globalScope.document.createElement("label");
+          label.className = "editor-context__control";
+          label.textContent = "Height";
+          const input = globalScope.document.createElement("input");
+          input.className = "editor-context__number";
+          input.type = "number";
+          input.min = "1";
+          input.max = String(maximum);
+          input.value = String(structureDraft.height);
+          input.dataset.editorInsertHeight = "true";
+          input.addEventListener("input", () => {
+            structureDraft.height = Math.max(1, Math.min(maximum, Math.round(Number(input.value) || 1)));
+            renderStructureDraft();
+          });
+          label.append(input, globalScope.document.createTextNode(` px · max ${maximum.toLocaleString("en-US")}`));
+          fragment.append(label);
+        }
+        if (structureDraft) {
+          const apply = globalScope.document.createElement("button");
+          apply.type = "button";
+          apply.className = "editor-context__action editor-context__action--apply";
+          apply.dataset.editorAction = "apply-structure";
+          apply.textContent = activeTool === "crop" ? "Apply Crop" : activeTool === "cut" ? "Remove Section" : "Insert Space";
+          apply.addEventListener("click", applyStructureDraft);
+          const cancel = globalScope.document.createElement("button");
+          cancel.type = "button";
+          cancel.className = "editor-context__action";
+          cancel.dataset.editorAction = "cancel-structure";
+          cancel.textContent = "Cancel";
+          cancel.addEventListener("click", cancelStructureDraft);
+          fragment.append(apply, cancel);
+        }
+        contextPanel.replaceChildren(fragment);
+        contextPanel.hidden = false;
+        return;
+      }
       const selected = getSelected(session.getState().document);
       const styleTool = selected?.type || (DRAW_TOOLS.has(activeTool) ? activeTool : null);
       if (!styleTool) {
@@ -223,10 +320,40 @@
     function setTool(tool) {
       activeTool = tool;
       previewDocument = null;
+      structureDraft = null;
       gesture = null;
+      selectedId = null;
       textInput.hidden = true;
       elements.interactionLayer.dataset.tool = tool;
       updateControls();
+    }
+
+    function cancelStructureDraft() {
+      structureDraft = null;
+      gesture = null;
+      renderStructureDraft();
+      updateControls();
+    }
+
+    function applyStructureDraft() {
+      if (!structureDraft) return;
+      try {
+        const documentState = session.getState().document;
+        let next;
+        if (structureDraft.kind === "crop") next = core.cropDocument(documentState, structureDraft);
+        else if (structureDraft.kind === "cut") next = core.cutDocument(documentState, structureDraft.y, structureDraft.y + structureDraft.height);
+        else next = core.insertSpace(documentState, structureDraft.y, structureDraft.height);
+        session.commit(next);
+        structureDraft = null;
+        selectedId = null;
+        elements.status.hidden = true;
+        refreshPreview(true);
+        updateControls();
+      } catch (error) {
+        elements.status.textContent = error?.message || "This structural edit could not be applied.";
+        elements.status.dataset.state = "error";
+        elements.status.hidden = false;
+      }
     }
 
     function pointFromEvent(event) {
@@ -314,6 +441,18 @@
           original: session.getState().document,
           bounds: core.getAnnotationBounds(selected),
         };
+      } else if (activeTool === "crop" || activeTool === "cut") {
+        structureDraft = null;
+        gesture = {
+          kind: "structure",
+          pointerId: event.pointerId,
+          tool: activeTool,
+          start: point,
+        };
+      } else if (activeTool === "insert") {
+        structureDraft = { kind: "insert", y: Math.round(point.y), height: 120 };
+        renderStructureDraft();
+        updateControls();
       } else if (activeTool === "select") {
         const hit = core.hitTestAnnotations(session.getState().document.annotations, point, 8 / displayScale);
         selectedId = hit?.id || null;
@@ -344,7 +483,24 @@
     function onPointerMove(event) {
       if (!gesture || (gesture.pointerId && event.pointerId !== gesture.pointerId)) return;
       const point = pointFromEvent(event);
-      if (gesture.kind === "move") {
+      if (gesture.kind === "structure") {
+        if (gesture.tool === "crop") {
+          structureDraft = {
+            kind: "crop",
+            x: Math.min(gesture.start.x, point.x),
+            y: Math.min(gesture.start.y, point.y),
+            width: Math.abs(point.x - gesture.start.x),
+            height: Math.abs(point.y - gesture.start.y),
+          };
+        } else {
+          structureDraft = {
+            kind: "cut",
+            y: Math.min(gesture.start.y, point.y),
+            height: Math.abs(point.y - gesture.start.y),
+          };
+        }
+        renderStructureDraft();
+      } else if (gesture.kind === "move") {
         previewDocument = core.moveAnnotation(
           gesture.original,
           selectedId,
@@ -371,6 +527,13 @@
 
     function onPointerUp(event) {
       if (!gesture || (gesture.pointerId && event.pointerId !== gesture.pointerId)) return;
+      if (gesture.kind === "structure") {
+        gesture = null;
+        renderStructureDraft();
+        updateControls();
+        try { elements.interactionLayer.releasePointerCapture(event.pointerId); } catch (_) {}
+        return;
+      }
       if (gesture.kind === "draw" && previewDocument) {
         const annotation = getSelected(previewDocument);
         const bounds = core.getAnnotationBounds(annotation);
@@ -401,6 +564,7 @@
     function undo() {
       session.undo();
       previewDocument = null;
+      structureDraft = null;
       refreshPreview(true);
       updateControls();
     }
@@ -408,6 +572,7 @@
     function redo() {
       session.redo();
       previewDocument = null;
+      structureDraft = null;
       refreshPreview(true);
       updateControls();
     }
@@ -416,6 +581,7 @@
       session.reset();
       selectedId = null;
       previewDocument = null;
+      structureDraft = null;
       refreshPreview(true);
       updateControls();
     }
@@ -444,6 +610,7 @@
         deleteSelection();
       } else if (event.key === "Escape") {
         previewDocument = null;
+        structureDraft = null;
         gesture = null;
         selectedId = null;
         refreshPreview();

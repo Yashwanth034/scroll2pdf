@@ -309,6 +309,75 @@ const resultStoreStub = `
     check("Text tool commits an inline text annotation",
       await evaluate("document.getElementById('editor-interaction-layer').dataset.annotationCount === '2' && document.getElementById('editor-text-input').hidden"));
 
+    await evaluate(`(() => {
+      document.querySelector('[data-editor-tool="crop"]').click();
+      const layer = document.getElementById('editor-interaction-layer');
+      const bounds = layer.getBoundingClientRect();
+      const event = (type, x, y, buttons) => layer.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, pointerId: 11, pointerType: 'mouse', buttons,
+        clientX: bounds.left + x, clientY: bounds.top + y,
+      }));
+      event('pointerdown', 100, 80, 1);
+      event('pointermove', 900, 680, 1);
+      event('pointerup', 900, 680, 0);
+    })()`);
+    check("Crop keeps a visible draft until Apply or Cancel",
+      await evaluate("!document.getElementById('editor-structure-draft').hidden && !!document.querySelector('[data-editor-action=\"apply-structure\"]') && !!document.querySelector('[data-editor-action=\"cancel-structure\"]')"));
+    await evaluate("document.querySelector('[data-editor-action=\"cancel-structure\"]').click()");
+    check("Cancel discards a crop draft without changing dimensions",
+      await evaluate("document.getElementById('editor-interaction-layer').dataset.documentSize === '1000x2500'"));
+    await evaluate(`(() => {
+      const layer = document.getElementById('editor-interaction-layer');
+      const bounds = layer.getBoundingClientRect();
+      const event = (type, x, y, buttons) => layer.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, pointerId: 12, pointerType: 'mouse', buttons,
+        clientX: bounds.left + x, clientY: bounds.top + y,
+      }));
+      event('pointerdown', 100, 80, 1);
+      event('pointermove', 900, 680, 1);
+      event('pointerup', 900, 680, 0);
+      document.querySelector('[data-editor-action="apply-structure"]').click();
+    })()`);
+    check("Apply Crop updates the document and visible dimensions",
+      await evaluate("document.getElementById('editor-interaction-layer').dataset.documentSize === '800x600' && document.getElementById('result-dimensions').textContent.includes('800 × 600 px')"));
+    await evaluate("document.getElementById('editor-undo').click()");
+    check("Undo restores the exact pre-crop document dimensions",
+      await evaluate("document.getElementById('editor-interaction-layer').dataset.documentSize === '1000x2500'"));
+
+    await evaluate(`(() => {
+      document.querySelector('[data-editor-tool="cut"]').click();
+      const layer = document.getElementById('editor-interaction-layer');
+      const bounds = layer.getBoundingClientRect();
+      const event = (type, y, buttons) => layer.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, pointerId: 13, pointerType: 'mouse', buttons,
+        clientX: bounds.left + 400, clientY: bounds.top + y,
+      }));
+      event('pointerdown', 150, 1);
+      event('pointermove', 350, 1);
+      event('pointerup', 350, 0);
+    })()`);
+    check("Cut section draft always spans the full current width",
+      await evaluate("parseFloat(document.getElementById('editor-structure-draft').style.left) === 0 && Math.abs(parseFloat(document.getElementById('editor-structure-draft').style.width) - document.getElementById('editor-interaction-layer').clientWidth) < 1"));
+    await evaluate("document.querySelector('[data-editor-action=\"apply-structure\"]').click()");
+    check("Cut section removes the selected band and closes the gap",
+      await evaluate("document.getElementById('editor-interaction-layer').dataset.documentSize === '1000x2300'"));
+
+    await evaluate(`(() => {
+      document.querySelector('[data-editor-tool="insert"]').click();
+      const layer = document.getElementById('editor-interaction-layer');
+      const bounds = layer.getBoundingClientRect();
+      layer.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, pointerId: 14, pointerType: 'mouse', buttons: 1,
+        clientX: bounds.left + 400, clientY: bounds.top + 400,
+      }));
+      const height = document.querySelector('[data-editor-insert-height]');
+      height.value = '120';
+      height.dispatchEvent(new Event('input', { bubbles: true }));
+      document.querySelector('[data-editor-action="apply-structure"]').click();
+    })()`);
+    check("Insert space adds the requested bounded white band",
+      await evaluate("document.getElementById('editor-interaction-layer').dataset.documentSize === '1000x2420' && document.getElementById('result-dimensions').textContent.includes('1,000 × 2,420 px')"));
+
     const originalDownloadHref = await evaluate("document.getElementById('download-image').href");
     await evaluate("document.getElementById('download-image').click()");
     await waitFor(
