@@ -159,11 +159,12 @@
     }
     if (type === "text") {
       const fontSize = style.fontSize || 32;
+      const lines = String(geometry.text || "").split("\n");
       return {
         x: geometry.x,
         y: geometry.y,
-        width: Math.max(fontSize, String(geometry.text || "").length * fontSize * 0.62),
-        height: fontSize * 1.3,
+        width: Math.max(fontSize, ...lines.map((line) => line.length * fontSize * 0.62)),
+        height: Math.max(1, lines.length) * fontSize * 1.2,
       };
     }
     return {
@@ -309,6 +310,23 @@
       ...annotation,
       style: normalizeStyle(annotation.type, { ...annotation.style, ...style }),
     }));
+  }
+
+  function updateTextAnnotation(document, id, textValue) {
+    const text = String(textValue || "");
+    return replaceAnnotation(document, id, (annotation) => {
+      if (annotation.type !== "text" || !text) return annotation;
+      return deepFreeze({
+        ...annotation,
+        geometry: { ...annotation.geometry, text },
+        ...(annotation.fragments ? {
+          fragments: annotation.fragments.map((fragment) => ({
+            ...fragment,
+            geometry: { ...fragment.geometry, text },
+          })),
+        } : {}),
+      });
+    });
   }
 
   function distanceToSegment(point, start, end) {
@@ -647,6 +665,7 @@
       resizeAnnotation,
       restyleAnnotation,
       simplifyPath,
+      updateTextAnnotation,
     }),
     configurable: false,
     enumerable: true,

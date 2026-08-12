@@ -24,6 +24,7 @@ body {
 }
 
 body {
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 88% -10%, rgba(78, 136, 247, 0.18), transparent 35rem),
     var(--ink-950);
@@ -46,7 +47,9 @@ body {
 .editor-toolbar {
   position: sticky;
   z-index: 1;
-  top: 87px;
+  top: var(--editor-sticky-top, 87px);
+  width: 100%;
+  min-width: 0;
   border-bottom: 1px solid rgba(120, 169, 255, 0.14);
   background: rgba(13, 23, 40, 0.96);
   backdrop-filter: blur(12px);

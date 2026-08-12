@@ -188,7 +188,9 @@
     } else if (type === "text") {
       context.font = `700 ${style.fontSize}px Inter, ui-sans-serif, sans-serif`;
       context.textBaseline = "top";
-      context.fillText(geometry.text, geometry.x, geometry.y);
+      String(geometry.text || "").split("\n").forEach((line, index) => {
+        context.fillText(line, geometry.x, geometry.y + index * style.fontSize * 1.2);
+      });
     }
     context.restore();
   }
@@ -274,13 +276,19 @@
     const source = options.source;
     const createCanvas = options.createCanvas || (() => document.createElement("canvas"));
     const cache = new Map();
+    let cacheRevision = "";
     let disposed = false;
 
     async function exportDocument(documentValue, exportOptions = {}) {
       if (disposed) throw new Error("The image editor renderer is closed.");
       const mimeType = exportOptions.mimeType === "image/jpeg" ? "image/jpeg" : "image/png";
       const quality = mimeType === "image/jpeg" ? Number(exportOptions.quality) || 0.95 : undefined;
-      const cacheKey = `${JSON.stringify(documentValue)}|${mimeType}|${quality || ""}`;
+      const revision = JSON.stringify(documentValue);
+      if (revision !== cacheRevision) {
+        cache.clear();
+        cacheRevision = revision;
+      }
+      const cacheKey = `${mimeType}|${quality || ""}`;
       if (cache.has(cacheKey)) return cache.get(cacheKey);
 
       const size = validateCanvasSize(documentValue.width, documentValue.height);

@@ -17,6 +17,7 @@ Scroll2PDF is a local-only Chrome/Chromium Manifest V3 extension for capturing c
 - Capture and PDF progress, popup-reopen recovery, one active operation, and cancellation during selection, scrolling, stitching, or PDF generation.
 - Restoration of original page/container positions, scroll behavior, temporary fixed/sticky suppression, overlays, and listeners on success, failure, or cancellation.
 - Responsive Long Image preview, compact PDF result metadata, local Blob downloads, and an inline PDF page preview on the result page so the capture can be reviewed before downloading.
+- Local image editing after capture: crop, remove a full-width section, insert white space, draw arrows/shapes/freehand marks, highlight, add multiline text, blur private details, move/resize/style/delete annotations, and use bounded Undo/Redo/Reset history. Edited images can be copied as PNG or downloaded in their original PNG/JPEG format. PDF results remain unchanged.
 - Scrollbars are hidden during capture so the stitched image has no vertical scrollbar stripe on its right edge; pages that shrink mid-capture (a classic cause of "stopped scrolling") are handled by adopting the smaller measured height.
 - Protected-page handling plus capture-rate, duration, canvas, pixel-area, and PDF page-count safety limits.
 - Explicitly selected difficult-chat capture with bottom-to-top traversal while preserving oldest-to-newest output order.
@@ -67,6 +68,9 @@ scroll2pdf/
 │   ├── popup.css
 │   └── popup.js
 ├── result/
+│   ├── editor-core.js
+│   ├── editor-renderer.js
+│   ├── editor-controller.js
 │   ├── result.html
 │   ├── result.css
 │   └── result.js
@@ -101,6 +105,8 @@ scroll2pdf/
 │   ├── run-stage3-tests.js
 │   ├── run-stage4-tests.js
 │   ├── run-stage5-tests.js
+│   ├── run-stage6-tests.js
+│   ├── run-editor-tests.js
 │   ├── run-stage3-browser-integration.js
 │   ├── run-stage4-browser-integration.js
 │   ├── run-stage5-browser-integration.js
@@ -128,6 +134,8 @@ For **Long Image**, that stitched record opens directly in the result page. For 
 4. render and encode one source band at a time;
 5. assemble a local PDF 1.7 document;
 6. store the final PDF and delete the temporary source image.
+
+The image result page retains the original Blob and represents crop/cut/insert operations as a non-destructive source-row map. Annotations stay as editable vector metadata, while a bounded vertical tile renderer draws only the visible preview area. Copy and Download render the current revision locally; no capture or edit data leaves the browser.
 
 The PDF writer is project-owned JavaScript rather than a third-party dependency. It writes the catalog, page tree, A4 media boxes, image XObjects, drawing streams, metadata, xref table, and trailer. No build system or PDF library is required.
 
@@ -181,7 +189,7 @@ Stages 4 and 5 add **no new permission**. The extension does not request `downlo
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select the project folder containing `manifest.json` (for example `/home/yash/Music/scroll2pdf`).
+4. Select the project folder containing `manifest.json` (for example `/home/yash/Videos/scroll2pdf`).
 5. Pin Scroll2PDF from the Extensions menu if desired.
 6. After source changes, return to `chrome://extensions` and click Scroll2PDF's **Reload** button.
 
@@ -192,12 +200,14 @@ Chrome shows its generic extension icon because fake/corrupt placeholder images 
 From the project folder:
 
 ```bash
-cd /home/yash/Music/scroll2pdf
+cd /home/yash/Videos/scroll2pdf
 node tests/run-tests.js
 node tests/run-stage2-tests.js
 node tests/run-stage3-tests.js
 node tests/run-stage4-tests.js
 node tests/run-stage5-tests.js
+node tests/run-stage6-tests.js
+node tests/run-editor-tests.js
 node tests/run-popup-e2e.js
 node tests/run-result-e2e.js
 node tests/run-extension-smoke.js

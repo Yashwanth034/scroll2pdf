@@ -59,6 +59,12 @@ function check(name, condition, detail = "") {
 const resultStoreStub = `
   window.__deletedResultId = "";
   window.__clipboardWrites = [];
+  window.__revokedObjectUrls = [];
+  const nativeRevokeObjectUrl = URL.revokeObjectURL.bind(URL);
+  URL.revokeObjectURL = (url) => {
+    window.__revokedObjectUrls.push(url);
+    nativeRevokeObjectUrl(url);
+  };
   Object.defineProperty(window, "ClipboardItem", {
     configurable: true,
     value: class ClipboardItem {
@@ -92,6 +98,20 @@ const resultStoreStub = `
           orientation: "landscape",
           pageCount: 6,
           filename: "scroll2pdf-example.com-2026-08-12-1305.pdf",
+          size: blob.size
+        });
+      }
+      if (resultId === "corrupt-e2e") {
+        const blob = new Blob(["not an image"], { type: "image/png" });
+        return Promise.resolve({
+          resultId,
+          blob,
+          width: 640,
+          height: 480,
+          mimeType: "image/png",
+          captureModeLabel: "Screenshot",
+          imageFormat: "PNG",
+          filename: "scroll2pdf-2026-08-12.png",
           size: blob.size
         });
       }
@@ -251,6 +271,17 @@ const resultStoreStub = `
     );
     check("clipboard denial keeps Download available and gives fallback guidance",
       await evaluate("document.getElementById('result-status').dataset.state === 'error' && document.getElementById('result-status').textContent.includes('Download Image') && document.getElementById('download-image').getAttribute('aria-disabled') === 'false'"));
+    await evaluate(`(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+      document.getElementById('copy-image').click();
+    })()`);
+    await waitFor(
+      () => evaluate("document.getElementById('result-status').textContent.includes('unavailable')"),
+      10000,
+      "unsupported clipboard recovery",
+    );
+    check("unsupported Clipboard API leaves Download available",
+      await evaluate("document.getElementById('download-image').getAttribute('aria-disabled') === 'false'"));
 
     await evaluate(`(() => {
       document.querySelector('[data-editor-tool="select"]').click();
@@ -308,6 +339,42 @@ const resultStoreStub = `
     })()`);
     check("Text tool commits an inline text annotation",
       await evaluate("document.getElementById('editor-interaction-layer').dataset.annotationCount === '2' && document.getElementById('editor-text-input').hidden"));
+    await evaluate(`(() => {
+      document.querySelector('[data-editor-tool="select"]').click();
+      const layer = document.getElementById('editor-interaction-layer');
+      const bounds = layer.getBoundingClientRect();
+      layer.dispatchEvent(new MouseEvent('dblclick', {
+        bubbles: true, clientX: bounds.left + 540, clientY: bounds.top + 190,
+      }));
+    })()`);
+    check("double-clicking selected text reopens the inline editor",
+      await evaluate("!document.getElementById('editor-text-input').hidden && document.getElementById('editor-text-input').value === 'Important detail'"));
+    await evaluate(`(() => {
+      const input = document.getElementById('editor-text-input');
+      input.value = 'Important detail\\nSecond line';
+      input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', ctrlKey: true }));
+    })()`);
+    check("reopened text updates in place with multiline content",
+      await evaluate("document.getElementById('editor-interaction-layer').dataset.annotationCount === '2' && document.getElementById('editor-interaction-layer').dataset.selectedText === 'Important detail\\nSecond line'"));
+    await evaluate(`(() => {
+      document.querySelector('[data-editor-tool="pen"]').click();
+      const layer = document.getElementById('editor-interaction-layer');
+      const bounds = layer.getBoundingClientRect();
+      layer.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, pointerId: 15, pointerType: 'mouse', buttons: 1,
+        clientX: bounds.left + 500, clientY: bounds.top + 250,
+      }));
+      layer.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true, pointerId: 15, pointerType: 'mouse', buttons: 1,
+        clientX: bounds.left + 650, clientY: bounds.top + 310,
+      }));
+      layer.dispatchEvent(new PointerEvent('pointercancel', {
+        bubbles: true, pointerId: 15, pointerType: 'mouse', buttons: 0,
+        clientX: bounds.left + 650, clientY: bounds.top + 310,
+      }));
+    })()`);
+    check("pointer cancellation discards an unfinished annotation",
+      await evaluate("document.getElementById('editor-interaction-layer').dataset.annotationCount === '2'"));
 
     await evaluate(`(() => {
       document.querySelector('[data-editor-tool="crop"]').click();
@@ -377,6 +444,28 @@ const resultStoreStub = `
     })()`);
     check("Insert space adds the requested bounded white band",
       await evaluate("document.getElementById('editor-interaction-layer').dataset.documentSize === '1000x2420' && document.getElementById('result-dimensions').textContent.includes('1,000 × 2,420 px')"));
+    const annotationsBeforeToolSweep = Number(await evaluate("document.getElementById('editor-interaction-layer').dataset.annotationCount"));
+    await evaluate(`(() => {
+      const layer = document.getElementById('editor-interaction-layer');
+      const bounds = layer.getBoundingClientRect();
+      ['arrow', 'circle', 'highlighter', 'blur'].forEach((tool, index) => {
+        document.querySelector('[data-editor-tool="' + tool + '"]').click();
+        const pointerId = 20 + index;
+        const startX = bounds.left + 120 + index * 150;
+        const startY = bounds.top + 520;
+        layer.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: true, pointerId, pointerType: 'mouse', buttons: 1, clientX: startX, clientY: startY,
+        }));
+        layer.dispatchEvent(new PointerEvent('pointermove', {
+          bubbles: true, pointerId, pointerType: 'mouse', buttons: 1, clientX: startX + 100, clientY: startY + 70,
+        }));
+        layer.dispatchEvent(new PointerEvent('pointerup', {
+          bubbles: true, pointerId, pointerType: 'mouse', buttons: 0, clientX: startX + 100, clientY: startY + 70,
+        }));
+      });
+    })()`);
+    check("arrow, circle, highlighter, and blur tools create editable objects",
+      Number(await evaluate("document.getElementById('editor-interaction-layer').dataset.annotationCount")) === annotationsBeforeToolSweep + 4);
 
     const originalDownloadHref = await evaluate("document.getElementById('download-image').href");
     await evaluate("document.getElementById('download-image').click()");
@@ -395,10 +484,52 @@ const resultStoreStub = `
         window.dispatchEvent(event);
         return event.defaultPrevented;
       })()`)));
+    const firstEditedDownloadHref = await evaluate("document.getElementById('download-image').href");
+    await evaluate("document.getElementById('download-image').click()");
+    await waitFor(
+      () => evaluate(`document.getElementById('download-image').href !== ${JSON.stringify(firstEditedDownloadHref)}`),
+      10000,
+      "repeated edited download",
+    );
+    check("repeated edited Download revokes its obsolete Blob URL",
+      await evaluate(`window.__revokedObjectUrls.includes(${JSON.stringify(firstEditedDownloadHref)})`));
+
+    await send("Emulation.setDeviceMetricsOverride", {
+      width: 560, height: 800, deviceScaleFactor: 1, mobile: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate("scrollTo(0, 300)");
+    check("narrow layout keeps the sticky toolbar below the wrapped header",
+      await evaluate("document.getElementById('editor-toolbar').getBoundingClientRect().top >= document.querySelector('.result-header').getBoundingClientRect().bottom - 1"));
+    const narrowOverflow = await evaluate(`(() => ({
+      contained: document.documentElement.scrollWidth === document.documentElement.clientWidth,
+      viewport: innerWidth,
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      widest: [...document.querySelectorAll('body *')]
+        .map((element) => ({ tag: element.id || element.className || element.tagName, right: element.getBoundingClientRect().right, width: element.getBoundingClientRect().width }))
+        .sort((a, b) => b.right - a.right)[0],
+    }))()`);
+    check("narrow layout keeps page-level horizontal overflow contained", narrowOverflow.contained, JSON.stringify(narrowOverflow));
+    check("editor tools retain accessible pointer targets",
+      await evaluate("[...document.querySelectorAll('.editor-tool')].every((button) => button.getBoundingClientRect().height >= 38)"));
+    await send("Emulation.setDeviceMetricsOverride", {
+      width: 1200, height: 800, deviceScaleFactor: 1, mobile: false,
+    });
+    await evaluate("scrollTo(0, 0)");
 
     const editorScreenshot = await send("Page.captureScreenshot", { format: "png" });
     fs.writeFileSync(editorScreenshotPath, Buffer.from(editorScreenshot.data, "base64"));
     console.log(`SCREENSHOT ${editorScreenshotPath}`);
+
+    await send("Page.navigate", { url: resultUrl.replace("result-e2e", "corrupt-e2e") });
+    await waitFor(
+      () => evaluate("document.getElementById('result-status').dataset.state === 'error'"),
+      15000,
+      "corrupt image recovery",
+    );
+    check("a corrupt source reports recovery without disabling original Download",
+      await evaluate("document.getElementById('result-status').textContent.includes('could not be opened') && document.getElementById('download-image').getAttribute('aria-disabled') === 'false'"));
 
     await send("Page.navigate", { url: resultUrl.replace("result-e2e", "pdf-e2e") });
     await waitFor(

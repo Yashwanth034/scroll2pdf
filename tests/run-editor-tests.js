@@ -132,6 +132,25 @@ test("editor history keeps only the configured number of reversible commands", (
   assert.equal(session.getState().canUndo, false);
 });
 
+test("editor history also trims snapshots at the configured metadata budget", () => {
+  const core = loadCore();
+  const original = core.createDocument({ width: 400, height: 600, mimeType: "image/png" });
+  const session = core.createSession(original, { maxCommands: 100, maxHistoryBytes: 600 });
+  for (let index = 0; index < 8; index += 1) {
+    session.commit(core.replaceAnnotations(original, [{
+      id: `large-${index}`,
+      type: "text",
+      payload: "x".repeat(180),
+    }]));
+  }
+  let undoCount = 0;
+  while (session.getState().canUndo) {
+    session.undo();
+    undoCount += 1;
+  }
+  assert.ok(undoCount <= 2, `Expected a bounded metadata history, retained ${undoCount} snapshots.`);
+});
+
 test("annotation creation normalizes geometry and applies tool-specific defaults", () => {
   const core = loadCore();
   const document = core.createDocument({ width: 800, height: 1200, mimeType: "image/png" });
@@ -185,6 +204,19 @@ test("annotation edits stay immutable and support move resize restyle and delete
   assert.equal(styled.annotations[0].style.thickness, 10);
   assert.equal(styled.annotations[0].style.opacity, 0.65);
   assert.equal(removed.annotations.length, 0);
+});
+
+test("text annotations can be reopened and updated without creating a second object", () => {
+  const core = loadCore();
+  const original = core.createDocument({ width: 800, height: 1200, mimeType: "image/png" });
+  const text = core.createAnnotation({
+    id: "text-1", type: "text", geometry: { x: 100, y: 120, text: "Before" },
+  }, original);
+  const updated = core.updateTextAnnotation(core.appendAnnotation(original, text), "text-1", "After\nSecond line");
+
+  assert.equal(updated.annotations.length, 1);
+  assert.equal(updated.annotations[0].geometry.text, "After\nSecond line");
+  assert.equal(text.geometry.text, "Before");
 });
 
 test("annotation hit testing returns the topmost visible object", () => {
@@ -391,6 +423,31 @@ test("renderer exposes both clipped pieces of a structurally split annotation", 
   ]));
 });
 
+test("renderer draws multiline text as separate native lines", () => {
+  const sandbox = loadRenderer();
+  const core = sandbox.Scroll2PDFEditorCore;
+  const document = core.createDocument({ width: 400, height: 500, mimeType: "image/png" });
+  const annotation = core.createAnnotation({
+    id: "multiline",
+    type: "text",
+    geometry: { x: 30, y: 40, text: "First line\nSecond line" },
+    style: { fontSize: 20 },
+  }, document);
+  const calls = [];
+  const context = {
+    save() {}, restore() {}, fillText(...args) { calls.push(args); },
+    set globalAlpha(_) {}, set strokeStyle(_) {}, set fillStyle(_) {},
+    set lineWidth(_) {}, set lineCap(_) {}, set lineJoin(_) {},
+    set font(_) {}, set textBaseline(_) {},
+  };
+  sandbox.Scroll2PDFEditorRenderer.drawAnnotation(context, annotation);
+
+  assert.equal(JSON.stringify(calls), JSON.stringify([
+    ["First line", 30, 40],
+    ["Second line", 30, 64],
+  ]));
+});
+
 test("renderer exports the requested image type and caches only an unchanged revision", async () => {
   const drawCalls = [];
   let canvasCount = 0;
@@ -423,11 +480,14 @@ test("renderer exports the requested image type and caches only an unchanged rev
   const first = await renderer.exportDocument(document, { mimeType: "image/png" });
   const cached = await renderer.exportDocument(document, { mimeType: "image/png" });
   const jpeg = await renderer.exportDocument(document, { mimeType: "image/jpeg", quality: 0.95 });
+  const edited = sandbox.Scroll2PDFEditorCore.insertSpace(document, 100, 1);
+  await renderer.exportDocument(edited, { mimeType: "image/png" });
+  await renderer.exportDocument(document, { mimeType: "image/png" });
 
   assert.equal(first.type, "image/png");
   assert.equal(cached, first);
   assert.equal(jpeg.type, "image/jpeg");
-  assert.equal(canvasCount, 2);
+  assert.equal(canvasCount, 4);
   assert.deepEqual(drawCalls[0], [0, 0, 640, 480, 0, 0, 640, 480]);
 });
 

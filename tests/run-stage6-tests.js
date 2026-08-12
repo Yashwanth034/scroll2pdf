@@ -58,7 +58,10 @@ test("stale result cleanup keeps recent records and removes only expired abandon
 });
 
 test("security review rejects remote scripts and unsafe executable construction", () => {
-  const files = ["manifest.json", "popup/popup.html", "result/result.html", "background/background.js", "content/content.js"];
+  const files = [
+    "manifest.json", "popup/popup.html", "result/result.html", "background/background.js", "content/content.js",
+    "result/editor-core.js", "result/editor-renderer.js", "result/editor-controller.js", "result/result.js",
+  ];
   for (const file of files) {
     const source = read(file);
     assert.equal(/<script[^>]+src=["']https?:|(?:https?:\/\/[^\s"']+)/i.test(source.replace(/https?:\/\/\*\//g, "")), false, file);

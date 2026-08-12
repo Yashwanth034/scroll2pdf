@@ -3,6 +3,7 @@
 
   let imageObjectUrl = "";
   let activeEditor = null;
+  let headerResizeObserver = null;
 
   function formatBytes(bytes) {
     if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -71,11 +72,20 @@
     const close = document.getElementById("close-result");
     const copy = document.getElementById("copy-image");
     const editorToolbar = document.getElementById("editor-toolbar");
+    const resultHeader = document.querySelector(".result-header");
     const pdfCard = document.getElementById("pdf-result-card");
     const pdfSummary = document.getElementById("pdf-result-summary");
     const resultId = new URLSearchParams(location.search).get("id");
 
     close.addEventListener("click", () => window.close());
+    const syncToolbarOffset = () => {
+      editorToolbar.style.setProperty("--editor-sticky-top", `${resultHeader.getBoundingClientRect().height}px`);
+    };
+    syncToolbarOffset();
+    if (globalScope.ResizeObserver) {
+      headerResizeObserver = new globalScope.ResizeObserver(syncToolbarOffset);
+      headerResizeObserver.observe(resultHeader);
+    }
     if (!resultId) {
       showError(status, "This capture result link is incomplete. Start a new capture from Scroll2PDF.");
       return;
@@ -150,6 +160,8 @@
     }
   });
   globalScope.addEventListener("pagehide", () => {
+    headerResizeObserver?.disconnect();
+    headerResizeObserver = null;
     activeEditor?.dispose();
     activeEditor = null;
     if (imageObjectUrl) {

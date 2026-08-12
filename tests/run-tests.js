@@ -178,6 +178,9 @@ test("every required project and manifest-referenced file exists", () => {
     "offscreen/pdf-generator.js",
     "result/result.html",
     "result/result.css",
+    "result/editor-core.js",
+    "result/editor-renderer.js",
+    "result/editor-controller.js",
     "result/result.js",
     "README.md",
   ];
@@ -364,6 +367,9 @@ test("extension scripts are valid JavaScript with no remote or external PDF code
     "offscreen/offscreen.js",
     "offscreen/pdf-writer.js",
     "offscreen/pdf-generator.js",
+    "result/editor-core.js",
+    "result/editor-renderer.js",
+    "result/editor-controller.js",
     "result/result.js",
   ];
 

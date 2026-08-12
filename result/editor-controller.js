@@ -121,6 +121,7 @@
       const selected = getSelected();
       elements.interactionLayer.dataset.annotationCount = String(getDocument().annotations.length);
       elements.interactionLayer.dataset.selectedColor = selected?.style?.color || "";
+      elements.interactionLayer.dataset.selectedText = selected?.type === "text" ? selected.geometry.text : "";
       if (!selected) {
         selectionBox.hidden = true;
         return;
@@ -378,17 +379,19 @@
       }, session.getState().document);
     }
 
-    function showTextInput(point) {
-      const style = toolStyles.get("text");
-      textInput.value = "";
+    function showTextInput(point, annotation = null) {
+      const style = annotation?.style || toolStyles.get("text");
+      const origin = annotation?.geometry || point;
+      textInput.value = annotation?.geometry?.text || "";
       Object.assign(textInput.style, {
-        left: `${point.x * displayScale}px`,
-        top: `${point.y * displayScale}px`,
+        left: `${origin.x * displayScale}px`,
+        top: `${origin.y * displayScale}px`,
         color: style.color,
         fontSize: `${Math.max(14, style.fontSize * displayScale)}px`,
       });
-      textInput.dataset.documentX = String(point.x);
-      textInput.dataset.documentY = String(point.y);
+      textInput.dataset.documentX = String(origin.x);
+      textInput.dataset.documentY = String(origin.y);
+      textInput.dataset.editingId = annotation?.id || "";
       textInput.hidden = false;
       textInput.focus();
     }
@@ -396,8 +399,17 @@
     function commitText() {
       if (textInput.hidden) return;
       const value = textInput.value.trim();
+      const editingId = textInput.dataset.editingId;
       textInput.hidden = true;
+      textInput.dataset.editingId = "";
       if (!value) return;
+      if (editingId) {
+        session.commit(core.updateTextAnnotation(session.getState().document, editingId, value));
+        selectedId = editingId;
+        refreshPreview();
+        updateControls();
+        return;
+      }
       const annotation = core.createAnnotation({
         id: `text-${Date.now()}-${++annotationSequence}`,
         type: "text",
@@ -475,9 +487,21 @@
           start: point,
           points: [point],
           annotationId: `${activeTool}-${Date.now()}-${++annotationSequence}`,
+          previousSelectedId: selectedId,
         };
       }
       try { elements.interactionLayer.setPointerCapture(event.pointerId); } catch (_) {}
+    }
+
+    function onDoubleClick(event) {
+      if (activeTool !== "select" || !textInput.hidden) return;
+      const point = pointFromEvent(event);
+      const hit = core.hitTestAnnotations(session.getState().document.annotations, point, 6 / displayScale);
+      if (hit?.type !== "text") return;
+      event.preventDefault();
+      selectedId = hit.id;
+      showTextInput(point, hit);
+      updateControls();
     }
 
     function onPointerMove(event) {
@@ -553,6 +577,16 @@
       try { elements.interactionLayer.releasePointerCapture(event.pointerId); } catch (_) {}
     }
 
+    function onPointerCancel(event) {
+      if (!gesture || (gesture.pointerId && event.pointerId !== gesture.pointerId)) return;
+      if (gesture.kind === "draw") selectedId = gesture.previousSelectedId || null;
+      if (gesture.kind === "structure") structureDraft = null;
+      previewDocument = null;
+      gesture = null;
+      refreshPreview();
+      updateControls();
+    }
+
     function deleteSelection() {
       if (!selectedId) return;
       session.commit(core.removeAnnotation(session.getState().document, selectedId));
@@ -591,6 +625,7 @@
         if (event.key === "Escape") {
           event.preventDefault();
           textInput.hidden = true;
+          textInput.dataset.editingId = "";
           elements.interactionLayer.focus();
         } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
@@ -690,7 +725,8 @@
     listen(elements.interactionLayer, "pointerdown", onPointerDown);
     listen(elements.interactionLayer, "pointermove", onPointerMove);
     listen(elements.interactionLayer, "pointerup", onPointerUp);
-    listen(elements.interactionLayer, "pointercancel", onPointerUp);
+    listen(elements.interactionLayer, "pointercancel", onPointerCancel);
+    listen(elements.interactionLayer, "dblclick", onDoubleClick);
     listen(elements.interactionLayer, "keydown", onKeyDown);
     listen(textInput, "blur", commitText);
     listen(undoButton, "click", undo);
