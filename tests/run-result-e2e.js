@@ -10,6 +10,7 @@ const { pathToFileURL } = require("node:url");
 const debugPort = 9750 + Math.floor(Math.random() * 150);
 const resultUrl = `${pathToFileURL(path.resolve(__dirname, "../result/result.html")).href}?id=result-e2e`;
 const screenshotPath = "/tmp/scroll2pdf-result.png";
+const editorScreenshotPath = "/tmp/scroll2pdf-editor-phase1.png";
 const browser = spawn("google-chrome", [
   "--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run",
   `--user-data-dir=/tmp/scroll2pdf-result-e2e-${process.pid}`,
@@ -57,6 +58,22 @@ function check(name, condition, detail = "") {
 
 const resultStoreStub = `
   window.__deletedResultId = "";
+  window.__clipboardWrites = [];
+  Object.defineProperty(window, "ClipboardItem", {
+    configurable: true,
+    value: class ClipboardItem {
+      constructor(items) { this.items = items; this.types = Object.keys(items); }
+    }
+  });
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: {
+      write(items) {
+        window.__clipboardWrites.push(items);
+        return Promise.resolve();
+      }
+    }
+  });
   window.Scroll2PDFResultStore = {
     getResult(resultId) {
       if (resultId === "pdf-e2e") {
@@ -158,6 +175,44 @@ const resultStoreStub = `
     check("download filename is preserved", await evaluate("document.getElementById('download-image').download") === "scroll2pdf-example.com-2026-08-12-1030.png");
     check("temporary IndexedDB record is released after load", await evaluate("window.__deletedResultId") === "result-e2e");
     check("preview is responsive", await evaluate("document.getElementById('result-image').getBoundingClientRect().width <= document.getElementById('preview-surface').clientWidth"));
+    check("image result shows Copy Image beside Download",
+      await evaluate("!document.getElementById('copy-image').hidden && document.getElementById('copy-image').nextElementSibling.id === 'download-image'"));
+    check("image result shows the focused editor toolbar in Select mode",
+      await evaluate("!document.getElementById('editor-toolbar').hidden && document.querySelector('[data-editor-tool=\"select\"]').getAttribute('aria-pressed') === 'true'"));
+    check("long image preview uses bounded visible tiles instead of one full canvas",
+      await evaluate(`(() => {
+        const viewport = document.getElementById('editor-viewport');
+        const layer = document.getElementById('editor-tile-layer');
+        const mounted = layer.querySelectorAll('.editor-preview-tile').length;
+        const total = Number(layer.dataset.totalTiles);
+        return !viewport.hidden && document.getElementById('result-image').hidden
+          && mounted > 0 && total > mounted;
+      })()`));
+    await evaluate("document.getElementById('copy-image').click()");
+    await waitFor(
+      () => evaluate("window.__clipboardWrites.length === 1"),
+      10000,
+      "clipboard image write",
+    );
+    check("Copy Image writes one PNG ClipboardItem",
+      await evaluate("window.__clipboardWrites[0][0].types.length === 1 && window.__clipboardWrites[0][0].types[0] === 'image/png' && window.__clipboardWrites[0][0].items['image/png'].type === 'image/png'"));
+    check("Copy Image announces success",
+      await evaluate("document.getElementById('copy-image').textContent === 'Copied' && document.getElementById('result-status').textContent.includes('Copied')"));
+    await evaluate(`(() => {
+      navigator.clipboard.write = () => Promise.reject(new Error('NotAllowedError'));
+      document.getElementById('copy-image').click();
+    })()`);
+    await waitFor(
+      () => evaluate("document.getElementById('copy-image').textContent === 'Copy Image'"),
+      10000,
+      "clipboard rejection recovery",
+    );
+    check("clipboard denial keeps Download available and gives fallback guidance",
+      await evaluate("document.getElementById('result-status').dataset.state === 'error' && document.getElementById('result-status').textContent.includes('Download Image') && document.getElementById('download-image').getAttribute('aria-disabled') === 'false'"));
+
+    const editorScreenshot = await send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(editorScreenshotPath, Buffer.from(editorScreenshot.data, "base64"));
+    console.log(`SCREENSHOT ${editorScreenshotPath}`);
 
     await send("Page.navigate", { url: resultUrl.replace("result-e2e", "pdf-e2e") });
     await waitFor(
@@ -171,6 +226,8 @@ const resultStoreStub = `
     check("PDF uses a compact result card instead of image preview", await evaluate("!document.getElementById('pdf-result-card').hidden && document.getElementById('preview-surface').hidden"));
     check("PDF download uses a local Blob URL", await evaluate("document.getElementById('download-image').href.startsWith('blob:')"));
     check("PDF download filename and action are correct", await evaluate("document.getElementById('download-image').download.endsWith('.pdf') && document.getElementById('download-image').textContent === 'Download PDF'"));
+    check("PDF result does not expose image editing or clipboard controls",
+      await evaluate("document.getElementById('copy-image').hidden && document.getElementById('editor-toolbar').hidden"));
     check("PDF temporary result is released after load", await evaluate("window.__deletedResultId") === "pdf-e2e");
     check("result page has no runtime exceptions", runtimeErrors.length === 0, runtimeErrors.join(", "));
 

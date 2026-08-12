@@ -2,6 +2,7 @@
   "use strict";
 
   let imageObjectUrl = "";
+  let activeEditor = null;
 
   function formatBytes(bytes) {
     if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -62,8 +63,14 @@
     const status = document.getElementById("result-status");
     const preview = document.getElementById("preview-surface");
     const image = document.getElementById("result-image");
+    const editorViewport = document.getElementById("editor-viewport");
+    const editorDocument = document.getElementById("editor-document");
+    const editorTileLayer = document.getElementById("editor-tile-layer");
+    const editorInteractionLayer = document.getElementById("editor-interaction-layer");
     const download = document.getElementById("download-image");
     const close = document.getElementById("close-result");
+    const copy = document.getElementById("copy-image");
+    const editorToolbar = document.getElementById("editor-toolbar");
     const pdfCard = document.getElementById("pdf-result-card");
     const pdfSummary = document.getElementById("pdf-result-summary");
     const resultId = new URLSearchParams(location.search).get("id");
@@ -90,6 +97,7 @@
       download.download = record.filename;
       download.textContent = view.downloadLabel;
       download.setAttribute("aria-disabled", "false");
+      await globalScope.Scroll2PDFResultStore.deleteResult(resultId);
       if (view.isPdf) {
         const pdfPreview = document.getElementById("pdf-preview-surface");
         const pdfFrame = document.getElementById("result-pdf");
@@ -105,13 +113,28 @@
         }, { once: true });
         pdfFrame.src = imageObjectUrl;
         pdfPreview.hidden = false;
+        copy.hidden = true;
+        editorToolbar.hidden = true;
       } else {
         image.src = imageObjectUrl;
         preview.hidden = false;
         pdfCard.hidden = true;
+        activeEditor = await globalScope.Scroll2PDFEditorController.create({
+          record,
+          elements: {
+            copy,
+            document: editorDocument,
+            image,
+            interactionLayer: editorInteractionLayer,
+            status,
+            tileLayer: editorTileLayer,
+            toolbar: editorToolbar,
+            selectTool: editorToolbar.querySelector('[data-editor-tool="select"]'),
+            viewport: editorViewport,
+          },
+        });
       }
       status.hidden = true;
-      await globalScope.Scroll2PDFResultStore.deleteResult(resultId);
     } catch (error) {
       console.error("Scroll2PDF could not load the capture result:", error);
       showError(status, "The captured result could not be opened. Start a new capture and try again.");
@@ -119,6 +142,8 @@
   }
 
   globalScope.addEventListener("beforeunload", () => {
+    activeEditor?.dispose();
+    activeEditor = null;
     if (imageObjectUrl) {
       URL.revokeObjectURL(imageObjectUrl);
       imageObjectUrl = "";

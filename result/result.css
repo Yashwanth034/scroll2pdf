@@ -43,6 +43,88 @@ body {
   backdrop-filter: blur(14px);
 }
 
+.editor-toolbar {
+  position: sticky;
+  z-index: 1;
+  top: 87px;
+  border-bottom: 1px solid rgba(120, 169, 255, 0.14);
+  background: rgba(13, 23, 40, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.editor-toolbar__rail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px clamp(12px, 2vw, 28px);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.editor-toolbar__divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 30px;
+  margin: 0 3px;
+  background: var(--line);
+}
+
+.editor-tool {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.editor-tool > span:first-child {
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  color: var(--blue);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.editor-tool:hover:not(:disabled) {
+  border-color: #3b506e;
+  background: var(--ink-850);
+  color: var(--text);
+}
+
+.editor-tool[aria-pressed="true"] {
+  border-color: rgba(120, 169, 255, 0.7);
+  background: rgba(78, 136, 247, 0.16);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--blue);
+}
+
+.editor-tool:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.editor-tool:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.editor-context {
+  min-height: 42px;
+  padding: 7px clamp(12px, 2vw, 28px);
+  border-top: 1px solid rgba(42, 61, 89, 0.7);
+  background: rgba(8, 17, 31, 0.72);
+}
+
 .brand-lockup {
   display: flex;
   align-items: center;
@@ -165,6 +247,51 @@ main {
   background-size: 20px 20px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
   text-align: center;
+}
+
+.editor-viewport {
+  position: relative;
+  width: 100%;
+  height: min(68vh, 780px);
+  min-height: 360px;
+  overflow: auto;
+  border-radius: 10px;
+  background: rgba(5, 11, 21, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(120, 169, 255, 0.08);
+  text-align: left;
+  scrollbar-color: var(--ink-700) var(--ink-950);
+}
+
+.editor-document {
+  position: relative;
+  min-width: 1px;
+  min-height: 1px;
+  margin: 0 auto;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+}
+
+.editor-tile-layer,
+.editor-interaction-layer {
+  position: absolute;
+  inset: 0 auto auto 0;
+}
+
+.editor-preview-tile {
+  position: absolute;
+  left: 0;
+  display: block;
+}
+
+.editor-interaction-layer {
+  z-index: 1;
+  cursor: default;
+  touch-action: none;
+}
+
+.editor-interaction-layer:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
 }
 
 .pdf-result-card {

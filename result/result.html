@@ -20,9 +20,35 @@
       </div>
       <div class="header-actions">
         <button id="close-result" class="button button--secondary" type="button">Close</button>
+        <button id="copy-image" class="button button--secondary" type="button" hidden>Copy Image</button>
         <a id="download-image" class="button button--primary" download aria-disabled="true">Download</a>
       </div>
     </header>
+
+    <section id="editor-toolbar" class="editor-toolbar" aria-label="Image editing tools" hidden>
+      <div class="editor-toolbar__rail" role="toolbar" aria-label="Annotate and edit image">
+        <button class="editor-tool" type="button" data-editor-tool="select" aria-pressed="true" title="Select and move objects">
+          <span aria-hidden="true">↖</span><span>Select</span>
+        </button>
+        <span class="editor-toolbar__divider" aria-hidden="true"></span>
+        <button class="editor-tool" type="button" data-editor-tool="crop" aria-pressed="false" title="Crop image"><span aria-hidden="true">⌗</span><span>Crop</span></button>
+        <button class="editor-tool" type="button" data-editor-tool="cut" aria-pressed="false" title="Remove horizontal section"><span aria-hidden="true">✂</span><span>Cut section</span></button>
+        <button class="editor-tool" type="button" data-editor-tool="insert" aria-pressed="false" title="Insert blank space"><span aria-hidden="true">↕</span><span>Insert space</span></button>
+        <span class="editor-toolbar__divider" aria-hidden="true"></span>
+        <button class="editor-tool" type="button" data-editor-tool="arrow" aria-pressed="false" title="Draw arrow"><span aria-hidden="true">➜</span><span>Arrow</span></button>
+        <button class="editor-tool" type="button" data-editor-tool="rectangle" aria-pressed="false" title="Draw rectangle"><span aria-hidden="true">□</span><span>Rectangle</span></button>
+        <button class="editor-tool" type="button" data-editor-tool="circle" aria-pressed="false" title="Draw circle"><span aria-hidden="true">○</span><span>Circle</span></button>
+        <button class="editor-tool" type="button" data-editor-tool="pen" aria-pressed="false" title="Draw freehand"><span aria-hidden="true">✎</span><span>Pen</span></button>
+        <button class="editor-tool" type="button" data-editor-tool="highlighter" aria-pressed="false" title="Highlight"><span aria-hidden="true">▰</span><span>Highlight</span></button>
+        <button class="editor-tool" type="button" data-editor-tool="text" aria-pressed="false" title="Add text"><span aria-hidden="true">T</span><span>Text</span></button>
+        <button class="editor-tool" type="button" data-editor-tool="blur" aria-pressed="false" title="Blur private information"><span aria-hidden="true">▦</span><span>Blur</span></button>
+        <span class="editor-toolbar__divider" aria-hidden="true"></span>
+        <button id="editor-undo" class="editor-tool editor-tool--compact" type="button" disabled title="Undo"><span aria-hidden="true">↶</span><span>Undo</span></button>
+        <button id="editor-redo" class="editor-tool editor-tool--compact" type="button" disabled title="Redo"><span aria-hidden="true">↷</span><span>Redo</span></button>
+        <button id="editor-reset" class="editor-tool editor-tool--compact" type="button" disabled title="Reset to original"><span aria-hidden="true">↺</span><span>Reset</span></button>
+      </div>
+      <div id="editor-context" class="editor-context" hidden></div>
+    </section>
 
     <main>
       <p id="result-status" class="result-status" role="status" aria-live="polite">Loading captured result…</p>
@@ -49,11 +75,22 @@
         </div>
       </section>
       <section id="preview-surface" class="preview-surface" aria-label="Full-page capture preview" hidden>
+        <div id="editor-viewport" class="editor-viewport" aria-label="Editable Scroll2PDF image" hidden>
+          <div id="editor-document" class="editor-document">
+            <div id="editor-tile-layer" class="editor-tile-layer"></div>
+            <div id="editor-interaction-layer" class="editor-interaction-layer" tabindex="0" aria-label="Image editing canvas"></div>
+          </div>
+        </div>
         <img id="result-image" alt="Full-page Scroll2PDF capture">
       </section>
     </main>
 
+    <script src="../utils/constants.js"></script>
+    <script src="../utils/capture-utils.js"></script>
     <script src="../utils/result-store.js"></script>
+    <script src="editor-core.js"></script>
+    <script src="editor-renderer.js"></script>
+    <script src="editor-controller.js"></script>
     <script src="result.js"></script>
   </body>
 </html>

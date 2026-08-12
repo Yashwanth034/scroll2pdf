@@ -12,8 +12,8 @@ copy() { mkdir -p "$STAGE_DIR/$(dirname "$1")"; cp "$ROOT_DIR/$1" "$STAGE_DIR/$1
 copy manifest.json
 copy README.md
 copy popup/popup.html; copy popup/popup.css; copy popup/popup.js
-copy result/result.html; copy result/result.css; copy result/result.js
-for file in background/*.js content/*.js content/adapters/*.js offscreen/*.js utils/*.js; do
+copy result/result.html; copy result/result.css
+for file in background/*.js content/*.js content/adapters/*.js offscreen/*.js result/*.js utils/*.js; do
   rel="${file#"$ROOT_DIR/"}"
   copy "$rel"
 done
