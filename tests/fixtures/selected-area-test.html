@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scroll2PDF selected-area fixture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 1100px; background: #eaf0f7; color: #142033; font: 16px/1.5 system-ui, sans-serif; }
+    header { padding: 22px; text-align: center; background: #172544; color: white; }
+    main { width: 1060px; margin: 24px auto; display: grid; grid-template-columns: 210px 600px 210px; gap: 20px; align-items: start; }
+    aside { position: sticky; top: 18px; min-height: 420px; padding: 18px; border: 2px dashed #b94d45; background: #fff0ed; }
+    .column { overflow: hidden; border: 3px solid #3667e9; border-radius: 14px; background: white; }
+    .section { height: 300px; padding: 34px; border-bottom: 2px solid #cbd8f7; background: linear-gradient(145deg, #fff, #edf3ff); }
+    .section:nth-child(even) { background: linear-gradient(145deg, #f4fff9, #e0f5e9); }
+    .section h2 { margin-top: 0; color: #244cb9; }
+    .bottom { height: 300px; display: grid; place-items: center; color: white; background: #17765a; font-size: 24px; font-weight: 850; }
+  </style>
+</head>
+<body>
+  <header><strong>Selected Area fixture</strong> — start capture after scrolling partway down</header>
+  <main>
+    <aside>LEFT OUTSIDE CONTENT<br>This must not appear in the selected central-column result.</aside>
+    <article id="selected-column" class="column">
+      <section class="section"><h2>Section 01</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 02</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 03</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 04</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 05</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 06</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 07</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 08</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 09</h2><p>Central column capture content.</p></section>
+      <section class="section"><h2>Section 10</h2><p>Central column capture content.</p></section>
+      <div class="bottom">SELECTED AREA BOTTOM MARKER</div>
+    </article>
+    <aside>RIGHT OUTSIDE CONTENT<br>This must not appear in the selected central-column result.</aside>
+  </main>
+</body>
+</html>

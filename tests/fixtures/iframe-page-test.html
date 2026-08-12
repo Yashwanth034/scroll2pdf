@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scroll2PDF iframe traversal fixture</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { background: #eef2f7; font-family: system-ui, sans-serif; }
+    header.page-header { height: 90px; background: #1f2937; color: white; display: flex; align-items: center; padding: 0 24px; font: 800 20px system-ui, sans-serif; }
+    section.block { height: 520px; display: grid; place-items: center; color: #334155; font: 800 26px system-ui, sans-serif; }
+    section.block--light { background: #e5e7eb; }
+    section.block--white { background: #f9fafb; }
+    .embed { width: 640px; height: 300px; border: 3px solid #64748b; display: block; margin: 0 auto; background: white; }
+    .embed-wrap { padding: 18px 0; }
+    .embed-label { text-align: center; font: 700 14px system-ui, sans-serif; color: #475569; margin-bottom: 8px; }
+    footer.page-footer { height: 140px; background: #17765a; color: white; display: grid; place-items: center; font: 850 22px system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <header class="page-header">Scroll2PDF iframe traversal fixture</header>
+  <section class="block block--light">Top page · content section A</section>
+  <section class="block block--white">Top page · content section B</section>
+  <div class="embed-wrap">
+    <div class="embed-label">Embedded document (window-scrolled)</div>
+    <iframe id="frame-window" class="embed" src="iframe-inner-window.html" title="Window-scrolled embedded page"></iframe>
+  </div>
+  <div class="embed-wrap">
+    <div class="embed-label">Embedded app shell (inner scroller)</div>
+    <iframe id="frame-shell" class="embed" src="iframe-inner-shell.html" title="App-shell embedded page"></iframe>
+  </div>
+  <footer class="page-footer">TOP PAGE BOTTOM MARKER</footer>
+</body>
+</html>

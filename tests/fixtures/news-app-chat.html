@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8"><title>News app chat</title><style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; font: 15px/1.35 system-ui, sans-serif; background: #0f1115; color: #e6edf3; }
+  .news-tab { position: sticky; top: 0; z-index: 9; height: 54px; display: flex; align-items: center; gap: 10px; padding: 0 18px; background: #2b9a5f; color: #ffffff; font-weight: 800; border-bottom: 1px solid #1e5c3c; }
+  .broadcast { position: sticky; bottom: 0; z-index: 9; height: 58px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: #1e3050; color: #dbe7ff; border-top: 1px solid #0c1a30; }
+  .broadcast input { flex: 1; height: 34px; border: 0; border-radius: 999px; padding: 0 14px; background: #2c3f63; color: #fff; }
+  main { max-width: 860px; margin: 0 auto; padding: 18px; }
+  .article { margin: 14px 0; padding: 16px 18px; border-radius: 12px; background: #1c2128; }
+  .article h3 { margin: 0 0 6px; color: #7fd4a5; }
+  .article p { margin: 0; color: #b7c1cc; }
+  .bottom-marker { height: 60px; display: flex; align-items: center; justify-content: center; background: #1c2128; color: #7fd4a5; font-weight: 700; border-radius: 12px; }
+</style></head><body>
+  <header class="news-tab">🌍 World News — section tab</header>
+  <main>
+    <h1>World News feed</h1>
+    <script>
+      document.write('<div class="article"><h3>Article 001</h3><p>Ordered feed content 001</p></div>'.repeat(0));
+    </script>
+  </main>
+  <footer class="broadcast">📢 Broadcast — enter chat <input placeholder="Type a message"></footer>
+  <script>
+    (() => {
+      "use strict";
+      const main = document.querySelector("main");
+      const fragment = document.createDocumentFragment();
+      for (let number = 1; number <= 140; number += 1) {
+        const article = document.createElement("div");
+        article.className = "article";
+        article.dataset.articleId = "news-" + String(number).padStart(3, "0");
+        article.innerHTML = "<h3>Article " + String(number).padStart(3, "0") + "</h3><p>Ordered feed content row " + number + "</p>";
+        fragment.appendChild(article);
+      }
+      main.appendChild(fragment);
+      const marker = document.createElement("div");
+      marker.className = "bottom-marker";
+      marker.textContent = "END OF FEED MARKER";
+      main.appendChild(marker);
+      window.__fixtureReady = true;
+    })();
+  </script>
+</body></html>

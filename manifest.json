@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "Scroll2PDF",
+  "description": "Capture full webpages, scrollable areas, and selected regions as long images or clean A4 PDFs.",
+  "version": "1.0.0",
+  "minimum_chrome_version": "109",
+  "action": {
+    "default_title": "Open Scroll2PDF",
+    "default_popup": "popup/popup.html"
+  },
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "permissions": [
+    "activeTab",
+    "offscreen",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "utils/constants.js",
+        "utils/capture-utils.js",
+        "utils/difficult-page-utils.js",
+        "content/capture-stability.js",
+        "content/iframe-expansion.js",
+        "content/page-capture.js",
+        "content/selection-overlay.js",
+        "content/adapters/generic-chat-adapter.js",
+        "content/adapters/whatsapp-adapter.js",
+        "content/adapters/telegram-adapter.js",
+        "content/adapters/adapter-registry.js",
+        "content/difficult-page-capture.js",
+        "content/scrollable-selection.js",
+        "content/screenshot-selection.js",
+        "content/selected-area.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

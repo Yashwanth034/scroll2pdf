@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Scroll2PDF</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="product-header">
+        <div class="brand-mark" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="brand-copy">
+          <div class="title-row">
+            <h1>Scroll2PDF</h1>
+            <span class="stage-badge">1.0</span>
+          </div>
+          <p>Capture anything beyond the screen</p>
+        </div>
+      </header>
+
+      <form id="capture-form" class="capture-form">
+        <fieldset class="form-section mode-section">
+          <legend>Capture Mode</legend>
+          <div class="mode-options">
+            <input class="choice-input" type="radio" name="captureMode" id="mode-full-page" value="full-page" checked>
+            <label class="mode-card" for="mode-full-page">
+              <span class="mode-glyph mode-glyph--page" aria-hidden="true"></span>
+              <span class="mode-copy">
+                <span class="mode-title">Full Page</span>
+                <span class="mode-description">Capture the entire webpage.</span>
+              </span>
+              <span class="selection-indicator" aria-hidden="true"></span>
+            </label>
+
+            <input class="choice-input" type="radio" name="captureMode" id="mode-scrollable-area" value="scrollable-area">
+            <label class="mode-card" for="mode-scrollable-area">
+              <span class="mode-glyph mode-glyph--panel" aria-hidden="true"></span>
+              <span class="mode-copy">
+                <span class="mode-title">Scrollable Area</span>
+                <span class="mode-description">Select a chat, panel, or scrollable container.</span>
+              </span>
+              <span class="selection-indicator" aria-hidden="true"></span>
+            </label>
+
+            <input class="choice-input" type="radio" name="captureMode" id="mode-selected-area" value="selected-area">
+            <label class="mode-card" for="mode-selected-area">
+              <span class="mode-glyph mode-glyph--selection" aria-hidden="true"></span>
+              <span class="mode-copy">
+                <span class="mode-title">Selected Area</span>
+                <span class="mode-description">Drag a region and capture it while the page scrolls.</span>
+              </span>
+              <span class="selection-indicator" aria-hidden="true"></span>
+            </label>
+
+            <input class="choice-input" type="radio" name="captureMode" id="mode-normal-screenshot" value="normal-screenshot">
+            <label class="mode-card" for="mode-normal-screenshot">
+              <span class="mode-glyph mode-glyph--camera" aria-hidden="true"></span>
+              <span class="mode-copy">
+                <span class="mode-title">Screenshot</span>
+                <span class="mode-description">Just what you see on screen — no scrolling.</span>
+              </span>
+              <span class="selection-indicator" aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <div id="screenshot-area-option" class="screenshot-area-option" hidden>
+            <input type="checkbox" name="selectScreenshotArea" id="select-screenshot-area">
+            <label for="select-screenshot-area">
+              <span class="screenshot-area-option__copy">Select area before capture</span>
+              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset id="output-section" class="form-section">
+          <legend>Output</legend>
+          <div class="segment-control segment-control--two">
+            <input class="choice-input" type="radio" name="outputType" id="output-pdf" value="a4-pdf" checked>
+            <label class="segment-option" for="output-pdf">A4 PDF</label>
+            <input class="choice-input" type="radio" name="outputType" id="output-image" value="long-image">
+            <label class="segment-option" for="output-image">Long Image</label>
+          </div>
+        </fieldset>
+
+        <section class="settings-section" aria-labelledby="settings-title">
+          <h2 id="settings-title">Settings</h2>
+          <div class="settings-grid">
+            <fieldset id="quality-setting" class="compact-setting">
+              <legend>Quality</legend>
+              <div class="segment-control segment-control--two segment-control--compact">
+                <input class="choice-input" type="radio" name="quality" id="quality-standard" value="standard">
+                <label class="segment-option" for="quality-standard">Standard</label>
+                <input class="choice-input" type="radio" name="quality" id="quality-high" value="high" checked>
+                <label class="segment-option" for="quality-high">High</label>
+              </div>
+            </fieldset>
+
+            <fieldset id="orientation-setting" class="compact-setting">
+              <legend>A4 Orientation</legend>
+              <div class="segment-control segment-control--two segment-control--compact">
+                <input class="choice-input" type="radio" name="orientation" id="orientation-portrait" value="portrait" checked>
+                <label class="segment-option" for="orientation-portrait">Portrait</label>
+                <input class="choice-input" type="radio" name="orientation" id="orientation-landscape" value="landscape">
+                <label class="segment-option" for="orientation-landscape">Landscape</label>
+              </div>
+            </fieldset>
+          </div>
+        </section>
+
+        <div class="action-area">
+          <button id="start-capture" class="primary-button" type="submit">
+            <span>Start Capture</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+          <button id="cancel-capture" class="cancel-button" type="button" hidden>
+            Cancel Capture
+          </button>
+          <div
+            id="capture-progress"
+            class="capture-progress"
+            role="progressbar"
+            aria-label="Capture progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            hidden
+          >
+            <span id="capture-progress-fill" class="capture-progress__fill"></span>
+          </div>
+          <p id="capture-status" class="status-message" role="status" aria-live="polite" hidden></p>
+        </div>
+      </form>
+    </div>
+
+    <script src="../utils/constants.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

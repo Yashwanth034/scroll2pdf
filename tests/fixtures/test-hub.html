@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scroll2PDF test hub</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 40px clamp(18px, 4vw, 64px); font: 15px/1.5 system-ui, sans-serif; background: #0b1220; color: #eaf1fd; }
+    h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -0.02em; }
+    .sub { margin: 0 0 26px; color: #9db2d4; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .card { display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid #263a5e; border-radius: 14px; background: #101b31; }
+    .card h2 { margin: 0; font-size: 17px; color: #8fb8ff; }
+    .card p { margin: 0; color: #b9c8e2; font-size: 13px; flex: 1; }
+    .tag { align-self: flex-start; padding: 3px 9px; border-radius: 99px; background: #1d3357; color: #a9d0ff; font-size: 11px; font-weight: 750; letter-spacing: 0.05em; text-transform: uppercase; }
+    a.open { display: inline-block; margin-top: 4px; padding: 8px 14px; border-radius: 9px; background: #3f7ae0; color: #fff; font-weight: 720; text-decoration: none; text-align: center; }
+    a.open:hover { filter: brightness(1.12); }
+    .note { margin-top: 26px; padding: 14px 16px; border-left: 3px solid #3f7ae0; background: #101b31; color: #b9c8e2; font-size: 13px; border-radius: 0 10px 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Scroll2PDF fixture test hub</h1>
+  <p class="sub">Every test page in the extension repo, grouped by the feature it exercises. Open a fixture to reproduce its scenario in the real Chrome window, then capture it with the extension (Full Page, Scrollable Area, Selected Area — or Screenshot for just what you see).</p>
+
+  <div class="grid">
+    <div class="card">
+      <span class="tag">Full Page</span>
+      <h2>full-page-test.html</h2>
+      <p>Ordinary long page with numbered rows, side columns, and a green bottom marker. Verifies full-page stitching covers the entire document and restores the original scroll.</p>
+      <a class="open" href="full-page-test.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Full Page · App shell</span>
+      <h2>container-scroll-test.html</h2>
+      <p>Pinned app layout where an inner column scrolls instead of the window (like Discord/Slack). Verifies full-page, Selected Area, and Scrollable Area all find the inner scroller.</p>
+      <a class="open" href="container-scroll-test.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Full Page · Iframes</span>
+      <h2>iframe-page-test.html</h2>
+      <p>Page containing a window-scrolled iframe and an app-shell iframe with its own inner scroller. Verifies embedded content is expanded and captured, then restored.</p>
+      <a class="open" href="iframe-page-test.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Bug repro · repeated header</span>
+      <h2>news-scroller-chat.html</h2>
+      <p>Dark chat app whose channel header and enter-chat composer are sticky bars <em>inside</em> the scroller, with side gutters and a live-updating clock in the header — the exact layout that repeated both bars in every Scrollable Area frame. Verifies the header appears once at the top and the composer once at the bottom. Append <code>?height=14000</code> for a taller chat.</p>
+      <a class="open" href="news-scroller-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Long pages</span>
+      <h2>long-page-test.html</h2>
+      <p>~18 000px page that must capture completely in many frames. Append <code>?mode=too-long</code> (40 000px): Full Page + image gives the friendly “page too long” error (Chrome caps a single image at 32 767px per side), while Full Page + A4 PDF paginates it into many pages automatically.</p>
+      <a class="open" href="long-page-test.html" target="_blank">Open fixture</a>
+      <a class="open" href="long-page-test.html?mode=too-long" target="_blank">Too-long variant</a>
+    </div>
+    <div class="card">
+      <span class="tag">Bug repro · stopped scrolling</span>
+      <h2>shrinking-page-test.html</h2>
+      <p>The page collapses a 2000px block on the first scroll — the exact trigger for “the selected area stopped scrolling before capture finished”. Verifies the capture adopts the smaller height instead of stalling.</p>
+      <a class="open" href="shrinking-page-test.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Bug repro · white line</span>
+      <h2>stripe-seam-test.html</h2>
+      <p>Full-bleed color stripes with no margins. Any seam misalignment or dropped row shows up as a bright white line; the result must be seamless at every device pixel ratio.</p>
+      <a class="open" href="stripe-seam-test.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Selected Area</span>
+      <h2>selected-area-test.html</h2>
+      <p>Column layout with excluded red side content. Verifies the selection crop excludes out-of-rect content and keeps a stable crop while scrolling.</p>
+      <a class="open" href="selected-area-test.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Scrollable Area</span>
+      <h2>scrollable-area-test.html</h2>
+      <p>Plain scrollable panel. Verifies Scrollable Area mode advances top-to-bottom and restores the original position.</p>
+      <a class="open" href="scrollable-area-test.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · prepend history</span>
+      <h2>prepend-history-chat.html</h2>
+      <p>Bottom-anchored chat that prepends older messages when scrolled to the top. Verifies the difficult-chat capture loads history in batches without the up-and-down scroll bounce and keeps oldest-to-newest order.</p>
+      <a class="open" href="prepend-history-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · virtualized</span>
+      <h2>virtualized-chat.html</h2>
+      <p>Virtualized message list that only mounts a window of rows (like Telegram/WhatsApp). Verifies virtualization is detected and every message is captured, not just the rendered slice.</p>
+      <a class="open" href="virtualized-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · sticky headers</span>
+      <h2>sticky-chat.html</h2>
+      <p>Chat with sticky date separators. Verifies repeated sticky overlays are hidden so they do not duplicate in the stitched result.</p>
+      <a class="open" href="sticky-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · seam overlap</span>
+      <h2>seam-overlap-chat.html</h2>
+      <p>Rows with substantial duplicate overlap between viewports. Verifies the seam trimmer removes repeated rows without cutting real content.</p>
+      <a class="open" href="seam-overlap-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · lazy media</span>
+      <h2>lazy-media-chat.html</h2>
+      <p>Chat where images load shortly after scrolling. Verifies the capture waits for media so results do not contain blank placeholders.</p>
+      <a class="open" href="lazy-media-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · dynamic resize</span>
+      <h2>dynamic-resize-chat.html</h2>
+      <p>Chat that changes width/height on every scroll. Verifies the capture tolerates geometry changes without aborting.</p>
+      <a class="open" href="dynamic-resize-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · sticky chrome</span>
+      <h2>sticky-chrome-chat.html</h2>
+      <p>Dark chat with a sticky channel-name header and a sticky enter-chat composer inside the scroller. Verifies the chrome appears exactly once — header at the top, composer at the true bottom — never repeated per frame.</p>
+      <a class="open" href="sticky-chrome-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · recreated chrome</span>
+      <h2>react-recreate-chat.html</h2>
+      <p>React-style chat whose sticky header and composer are re-created on every scroll (no stable DOM attributes). Verifies the dedup survives node re-creation — the exact bug that repeated the channel header and chat box in every PDF page / long image.</p>
+      <a class="open" href="react-recreate-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">News app · sticky chrome</span>
+      <h2>news-app-chat.html</h2>
+      <p>Window-scrolling news feed with a sticky “World News” tab on top and a sticky “Broadcast · enter chat” bar on the bottom. Verifies Selected Area and Full Page keep the tab once at the top and never repeat either bar per frame.</p>
+      <a class="open" href="news-app-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Chat · navigation change</span>
+      <h2>navigation-change-chat.html</h2>
+      <p>Chat whose conversation identity changes mid-capture. Verifies the capture aborts safely and restores the page instead of producing a mixed conversation.</p>
+      <a class="open" href="navigation-change-chat.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">PDF breaks</span>
+      <h2>pdf-smart-break-test.html</h2>
+      <p>Content designed to make PDF page breaks land in awkward places. Verifies smart page breaks avoid cutting through meaningful content.</p>
+      <a class="open" href="pdf-smart-break-test.html" target="_blank">Open fixture</a>
+    </div>
+    <div class="card">
+      <span class="tag">Result page</span>
+      <h2>../result/result.html</h2>
+      <p>The capture result page. With a PDF it now shows an inline preview of every page (scroll to review) before downloading. With an image it shows the stitched picture.</p>
+      <a class="open" href="../result/result.html" target="_blank">Open result page</a>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>How to run the automated suites:</strong> <code>node tests/run-tests.js</code> (unit),
+    <code>node tests/run-stage3-browser-integration.js</code> (full-page / selected / scrollable),
+    <code>node tests/run-stage5-browser-integration.js</code> (difficult chats + PDFs),
+    <code>node tests/run-chrome-dedup-browser-test.js</code> (sticky chrome appears once in Scrollable and Selected Area),
+    <code>node tests/run-long-page-browser-test.js</code> (pages beyond Chrome's single-canvas limit → multi-page PDF / friendly error).
+    Point them at a Chrome instance with <code>S2P_ATTACH_PORT</code> and <code>S2P_FIXTURE_BASE</code>.
+  </div>
+</body>
+</html>

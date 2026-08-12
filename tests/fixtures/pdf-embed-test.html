@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Scroll2PDF PDF embed test</title>
+  <style>
+    body { margin: 0; font: 14px system-ui, sans-serif; background: #0d1728; color: #f4f7fc; }
+    #status { padding: 10px; white-space: pre-wrap; }
+    iframe { width: 600px; height: 700px; border: 1px solid #2a3d59; }
+  </style>
+</head>
+<body>
+  <pre id="status">building pdf…</pre>
+  <iframe id="pdf-frame" title="PDF preview test"></iframe>
+  <script src="../../offscreen/pdf-writer.js"></script>
+  <script>
+    (async () => {
+      const status = document.getElementById("status");
+      const frame = document.getElementById("pdf-frame");
+      try {
+        if (!window.Scroll2PDFPdfWriter) throw new Error("pdf-writer not loaded");
+        const pageSpec = Scroll2PDFPdfWriter.RasterPdfWriter && {
+          widthPt: 595.28, heightPt: 841.89, marginPt: 28.35,
+        };
+        const writer = new Scroll2PDFPdfWriter.RasterPdfWriter({ pageSpec, title: "embed test.pdf" });
+        const addPage = (color) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 320; canvas.height = 480;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = color; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const rgb = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          const out = new Uint8Array((rgb.length / 4) * 3);
+          for (let i = 0, o = 0; i < rgb.length; i += 4, o += 3) {
+            out[o] = rgb[i]; out[o + 1] = rgb[i + 1]; out[o + 2] = rgb[i + 2];
+          }
+          writer.addImagePage({
+            bytes: out,
+            width: 320, height: 480,
+            filter: "FlateDecode",
+            displayWidthPt: 300, displayHeightPt: 450,
+          });
+        };
+        addPage("#2f7fd1");
+        addPage("#37a05a");
+        const bytes = writer.build();
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        status.textContent = "pdf built: " + blob.size + " bytes\nloading iframe…";
+        frame.onload = () => { status.textContent += "\niframe onload fired"; };
+        frame.src = URL.createObjectURL(blob);
+        setTimeout(() => {
+          const doc = frame.contentDocument;
+          status.textContent += "\ncontentDocument: " + (doc ? (doc.title || "exists") : "null");
+          status.textContent += "\ncontentWindow: " + (frame.contentWindow ? "exists" : "null");
+          const scroll = doc ? (doc.scrollingElement ? doc.scrollingElement.scrollHeight : doc.body ? doc.body.scrollHeight : "no-scroller") : "-";
+          status.textContent += "\niframe doc scrollHeight: " + scroll;
+        }, 3000);
+      } catch (error) {
+        status.textContent = "ERROR " + error.message + "\n" + (error.stack || "");
+      }
+    })();
+  </script>
+</body>
+</html>

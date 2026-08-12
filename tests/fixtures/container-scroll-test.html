@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scroll2PDF container-scroll fixture</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; background: #101418; }
+    #app { display: flex; height: 100%; }
+    #sidebar { width: 220px; flex: none; overflow-y: auto; background: #1e2a38; color: #cfe3ff; }
+    .side-item { padding: 14px 16px; border-bottom: 1px solid #2b3a4d; font: 600 13px system-ui, sans-serif; }
+    #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #topbar { height: 56px; flex: none; background: #22303f; color: white; display: flex; align-items: center; padding: 0 18px; font: 700 15px system-ui, sans-serif; }
+    #selected-column { flex: 1; overflow-y: auto; background: #f4f7fb; }
+    #content { padding: 12px; }
+    .row { height: 120px; margin-bottom: 12px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font: 700 20px system-ui, sans-serif; color: white; }
+    .row:nth-child(odd) { background: #3b6fd4; }
+    .row:nth-child(even) { background: #2fa574; }
+    .bottom { height: 120px; border-radius: 10px; background: #17765a; color: white; display: grid; place-items: center; font-size: 22px; font-weight: 850; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="side-item">Sidebar item 01</div>
+      <div class="side-item">Sidebar item 02</div>
+      <div class="side-item">Sidebar item 03</div>
+      <div class="side-item">Sidebar item 04</div>
+      <div class="side-item">Sidebar item 05</div>
+      <div class="side-item">Sidebar item 06</div>
+      <div class="side-item">Sidebar item 07</div>
+      <div class="side-item">Sidebar item 08</div>
+      <div class="side-item">Sidebar item 09</div>
+      <div class="side-item">Sidebar item 10</div>
+      <div class="side-item">Sidebar item 11</div>
+      <div class="side-item">Sidebar item 12</div>
+      <div class="side-item">Sidebar item 13</div>
+      <div class="side-item">Sidebar item 14</div>
+      <div class="side-item">Sidebar item 15</div>
+      <div class="side-item">Sidebar item 16</div>
+      <div class="side-item">Sidebar item 17</div>
+      <div class="side-item">Sidebar item 18</div>
+      <div class="side-item">Sidebar item 19</div>
+      <div class="side-item">Sidebar item 20</div>
+    </aside>
+    <div id="main">
+      <header id="topbar">Container App Fixture</header>
+      <div id="selected-column">
+        <div id="content">
+          <div class="row">Message 01</div>
+          <div class="row">Message 02</div>
+          <div class="row">Message 03</div>
+          <div class="row">Message 04</div>
+          <div class="row">Message 05</div>
+          <div class="row">Message 06</div>
+          <div class="row">Message 07</div>
+          <div class="row">Message 08</div>
+          <div class="row">Message 09</div>
+          <div class="row">Message 10</div>
+          <div class="row">Message 11</div>
+          <div class="row">Message 12</div>
+          <div class="row">Message 13</div>
+          <div class="row">Message 14</div>
+          <div class="row">Message 15</div>
+          <div class="row">Message 16</div>
+          <div class="row">Message 17</div>
+          <div class="row">Message 18</div>
+          <div class="row">Message 19</div>
+          <div class="row">Message 20</div>
+          <div class="row">Message 21</div>
+          <div class="row">Message 22</div>
+          <div class="row">Message 23</div>
+          <div class="row">Message 24</div>
+          <div class="bottom">CONTAINER BOTTOM MARKER</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

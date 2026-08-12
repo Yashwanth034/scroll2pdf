@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scroll2PDF scrollable-area fixture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #e8eef5; color: #172033; font: 16px/1.5 system-ui, sans-serif; }
+    main { width: min(980px, calc(100% - 40px)); margin: 24px auto; display: grid; grid-template-columns: 1fr 430px; gap: 28px; }
+    .outside { padding: 24px; border: 2px dashed #a05252; background: #fff4f1; }
+    .panel { height: 620px; overflow-y: auto; border: 3px solid #315be8; border-radius: 14px; background: white; box-shadow: 0 18px 45px #18325322; }
+    .panel-header { position: sticky; top: 0; z-index: 1; padding: 15px 18px; color: white; background: #315be8; font-weight: 750; }
+    .row { margin: 14px; padding: 20px; border-radius: 10px; background: #eef4ff; border: 1px solid #c7d8ff; }
+    .row:nth-child(odd) { background: #f3fbf7; border-color: #c7ead8; }
+    .bottom { margin: 14px; padding: 28px; text-align: center; color: white; background: #17765a; border-radius: 10px; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <main>
+    <aside class="outside">
+      <h1>Outside content</h1>
+      <p>This red-marked column must not appear in a Scrollable Area result.</p>
+    </aside>
+    <section id="scrollable-panel" class="panel" aria-label="Numbered scrollable test panel">
+      <div class="panel-header">Sticky panel header — expected once</div>
+      <div class="row">Message 01</div><div class="row">Message 02</div>
+      <div class="row">Message 03</div><div class="row">Message 04</div>
+      <div class="row">Message 05</div><div class="row">Message 06</div>
+      <div class="row">Message 07</div><div class="row">Message 08</div>
+      <div class="row">Message 09</div><div class="row">Message 10</div>
+      <div class="row">Message 11</div><div class="row">Message 12</div>
+      <div class="row">Message 13</div><div class="row">Message 14</div>
+      <div class="row">Message 15</div><div class="row">Message 16</div>
+      <div class="row">Message 17</div><div class="row">Message 18</div>
+      <div class="row">Message 19</div><div class="row">Message 20</div>
+      <div class="row">Message 21</div><div class="row">Message 22</div>
+      <div class="row">Message 23</div><div class="row">Message 24</div>
+      <div class="bottom">SCROLLABLE AREA BOTTOM MARKER</div>
+    </section>
+  </main>
+</body>
+</html>

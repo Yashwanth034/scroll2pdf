@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset="utf-8"><title>React-style recreated chrome chat</title><style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; font: 15px/1.35 system-ui, sans-serif; background: #101318; color: #dbe2ea; }
+  .app { display: flex; justify-content: center; padding: 20px; }
+  .chat-pane { position: relative; overflow: hidden; border-radius: 14px; background: #0b141a; box-shadow: 0 12px 40px #00000066; }
+  #chat-scroll { width: 720px; height: 640px; overflow-y: auto; overflow-x: hidden; scroll-behavior: auto; background: #0b141a; }
+  .channel-header { position: sticky; top: 0; z-index: 6; height: 56px; display: flex; align-items: center; padding: 0 18px; background: #17457a; color: #e9edef; font-weight: 700; border-bottom: 1px solid #0a0f14; }
+  .composer { position: sticky; bottom: 0; z-index: 6; height: 58px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: #17457a; border-top: 1px solid #0a0f14; }
+  .composer-input { flex: 1; height: 34px; border: 0; border-radius: 999px; padding: 0 14px; background: #2a3942; color: #e9edef; }
+  .messages { min-height: 100%; padding: 14px 14px 70px; }
+  .message { min-height: 64px; margin: 8px 0; padding: 10px 14px; border-radius: 10px; background: #202c33; color: #e9edef; }
+  .message strong { display: block; font-size: 16px; color: #53bdeb; }
+  .newest { background: #0d4a2d !important; }
+</style></head><body data-mode="react-recreate"><main class="app"><section class="chat-pane"><div id="chat-scroll" data-conversation-id="react-recreate-fixture"><div id="messages" class="messages"></div></div></section></main><script>
+(() => {
+  "use strict";
+  // React-style: the sticky header and composer have NO stable attributes and
+  // are RE-CREATED (new DOM nodes) on every scroll event, like a re-render.
+  const scroller = document.getElementById("chat-scroll");
+  const messages = document.getElementById("messages");
+  const total = 90;
+  for (let number = 1; number <= total; number += 1) {
+    const item = document.createElement("article");
+    item.className = "message" + (number === total ? " newest" : "");
+    item.dataset.messageId = "rr-message-" + String(number).padStart(3, "0");
+    item.innerHTML = "<strong>Message " + String(number).padStart(3, "0") + "</strong><span>Dark chat content row " + number + "</span>";
+    messages.appendChild(item);
+  }
+  function mountChrome() {
+    const header = document.createElement("div");
+    header.className = "channel-header";
+    header.textContent = "# general · channel name header";
+    const composer = document.createElement("div");
+    composer.className = "composer";
+    const input = document.createElement("input");
+    input.className = "composer-input";
+    input.placeholder = "Enter chat box panel";
+    const button = document.createElement("button");
+    button.textContent = "➤";
+    composer.appendChild(input);
+    composer.appendChild(button);
+    scroller.prepend(header);
+    scroller.appendChild(composer);
+  }
+  // Re-create chrome on every scroll (React re-render simulation)
+  scroller.addEventListener("scroll", () => {
+    scroller.querySelectorAll(".channel-header, .composer").forEach((node) => node.remove());
+    mountChrome();
+  });
+  mountChrome();
+  scroller.scrollTop = 400;
+  window.__fixtureOriginalScrollTop = scroller.scrollTop;
+  window.__fixtureReady = true;
+})();
+</script></body></html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Scroll2PDF iframe inner page (app shell)</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    #shell { height: 100%; display: flex; flex-direction: column; }
+    #shell-header { flex: none; height: 48px; background: #334155; color: white; display: flex; align-items: center; padding: 0 14px; font: 700 14px system-ui, sans-serif; }
+    #scroller { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    .band { height: 420px; display: grid; place-items: center; color: white; font: 800 22px system-ui, sans-serif; }
+    .band-1 { background: #84cc16; }
+    .band-2 { background: #ef4444; }
+    .band-3 { background: #a855f7; }
+    .band-4 { background: #14b8a6; }
+    .band-5 { background: #eab308; }
+    .band-6 { background: #22c55e; }
+  </style>
+</head>
+<body>
+  <div id="shell">
+    <header id="shell-header">Embedded app shell</header>
+    <div id="scroller">
+      <div class="band band-1">SHELL FRAME · BAND 1</div>
+      <div class="band band-2">SHELL FRAME · BAND 2</div>
+      <div class="band band-3">SHELL FRAME · BAND 3</div>
+      <div class="band band-4">SHELL FRAME · BAND 4</div>
+      <div class="band band-5">SHELL FRAME · BAND 5</div>
+      <div class="band band-6">SHELL FRAME · BAND 6 (deepest)</div>
+    </div>
+  </div>
+</body>
+</html>

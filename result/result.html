@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Scroll2PDF Capture</title>
+    <link rel="stylesheet" href="result.css">
+  </head>
+  <body>
+    <header class="result-header">
+      <div class="brand-lockup">
+        <div class="page-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div>
+          <p class="eyebrow">Scroll2PDF capture</p>
+          <h1 id="result-title">Preparing your capture…</h1>
+          <p id="result-dimensions" class="dimensions"></p>
+          <p id="result-metadata" class="dimensions"></p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="close-result" class="button button--secondary" type="button">Close</button>
+        <a id="download-image" class="button button--primary" download aria-disabled="true">Download</a>
+      </div>
+    </header>
+
+    <main>
+      <p id="result-status" class="result-status" role="status" aria-live="polite">Loading captured result…</p>
+      <section id="pdf-result-card" class="pdf-result-card" aria-label="A4 PDF result" hidden>
+        <div class="pdf-sheet" aria-hidden="true">
+          <span class="pdf-sheet__fold"></span>
+          <span class="pdf-sheet__line"></span>
+          <span class="pdf-sheet__line"></span>
+          <span class="pdf-sheet__line"></span>
+          <strong>PDF</strong>
+        </div>
+        <div class="pdf-result-copy">
+          <p class="eyebrow">A4 document ready</p>
+          <h2>Your capture is paginated and ready to save.</h2>
+          <p id="pdf-result-summary"></p>
+        </div>
+      </section>
+      <section id="pdf-preview-surface" class="pdf-preview-surface" aria-label="PDF page preview" hidden>
+        <div class="pdf-preview-toolbar">
+          <span id="pdf-preview-label" class="pdf-preview-label" role="status">Loading preview…</span>
+        </div>
+        <div class="pdf-preview-frame">
+          <iframe id="result-pdf" title="Captured PDF preview"></iframe>
+        </div>
+      </section>
+      <section id="preview-surface" class="preview-surface" aria-label="Full-page capture preview" hidden>
+        <img id="result-image" alt="Full-page Scroll2PDF capture">
+      </section>
+    </main>
+
+    <script src="../utils/result-store.js"></script>
+    <script src="result.js"></script>
+  </body>
+</html>

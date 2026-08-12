@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scroll2PDF shrinking-page fixture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: #eef2f7; color: #142033; }
+    .panel { height: 180px; padding: 30px; border-bottom: 2px solid #c7d4ea; background: linear-gradient(135deg, #ffffff, #e8f0ff); display: flex; align-items: center; gap: 18px; }
+    .panel strong { font-size: 22px; color: #1e3fae; }
+    .panel:nth-of-type(even) { background: linear-gradient(135deg, #f2fff8, #dcf5e6); }
+    .panel:nth-of-type(even) strong { color: #0f7a52; }
+    #collapsible { height: 2000px; margin: 40px; border: 4px dashed #b94d45; background: repeating-linear-gradient(45deg, #fff0ed, #fff0ed 20px, #ffd9d4 20px, #ffd9d4 40px); display: flex; align-items: center; justify-content: center; font: 800 26px system-ui; color: #a33; }
+    .bottom { height: 200px; display: grid; place-items: center; color: white; background: #17765a; font-size: 26px; font-weight: 850; }
+    .status { position: fixed; top: 8px; right: 12px; z-index: 99; padding: 6px 12px; border-radius: 8px; background: #1c2b47; color: white; font: 700 12px system-ui; }
+  </style>
+</head>
+<body>
+  <div class="status" id="status">height: --</div>
+  <div class="panel"><strong>Panel A1</strong><span>Pre-collapse content</span></div>
+  <div class="panel"><strong>Panel A2</strong><span>Pre-collapse content</span></div>
+  <div id="collapsible">This tall block disappears during capture</div>
+  <div class="panel"><strong>Panel B1</strong><span>Post-collapse content</span></div>
+  <div class="panel"><strong>Panel B2</strong><span>Post-collapse content</span></div>
+  <div class="panel"><strong>Panel B3</strong><span>Post-collapse content</span></div>
+  <div class="bottom">SHRINKING PAGE BOTTOM MARKER</div>
+  <script>
+    (function () {
+      function update() {
+        document.getElementById("status").textContent = "height: " + document.documentElement.scrollHeight;
+      }
+      // Collapse the big block on the FIRST scroll (once), then stop. This shrinks
+      // the page at the exact moment the capture starts scrolling, the realistic
+      // trigger for "the selected area stopped scrolling before capture finished".
+      window.addEventListener("scroll", function onScroll() {
+        window.removeEventListener("scroll", onScroll);
+        var block = document.getElementById("collapsible");
+        if (block) block.remove();
+        update();
+      });
+      window.addEventListener("load", update);
+      window.addEventListener("resize", update);
+      setInterval(update, 500);
+    })();
+  </script>
+</body>
+</html>

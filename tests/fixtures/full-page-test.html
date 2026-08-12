@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Scroll2PDF Full-page Test</title>
+    <link rel="stylesheet" href="full-page-test.css">
+  </head>
+  <body>
+    <header class="sticky-header">Scroll2PDF test · sticky header</header>
+    <div class="fixed-badge">Fixed badge</div>
+    <main>
+      <section class="panel panel--one"><strong>Section 1</strong><span>Top of page</span></section>
+      <section class="panel panel--two"><strong>Section 2</strong><span>Solid boundary check</span></section>
+      <section class="panel panel--three"><strong>Section 3</strong><span>Scroll checkpoint</span></section>
+      <section class="lazy-grid" aria-label="Lazy-loaded image test">
+        <img class="lazy-image" data-index="1" alt="Lazy image 1">
+        <img class="lazy-image" data-index="2" alt="Lazy image 2">
+        <img class="lazy-image" data-index="3" alt="Lazy image 3">
+        <img class="lazy-image" data-index="4" alt="Lazy image 4">
+      </section>
+      <section class="panel panel--four"><strong>Section 4</strong><span>Bottom approach</span></section>
+      <footer>End of Scroll2PDF test page</footer>
+    </main>
+    <script src="full-page-test.js"></script>
+  </body>
+</html>
