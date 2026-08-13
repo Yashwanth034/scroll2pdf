@@ -88,7 +88,7 @@ test("release icons are valid PNGs at every Chrome size", () => {
   }
 });
 
-test("release archive excludes development fixtures and includes runtime manifest paths", () => {
+test("release packaging excludes development fixtures and keeps generated archives ignored", () => {
   const script = read("scripts/package-release.sh");
   assert.match(script, /zip -q -r/);
   assert.match(script, /manifest\.json/);
@@ -96,7 +96,7 @@ test("release archive excludes development fixtures and includes runtime manifes
   assert.match(script, /result\/\*\.js/);
   assert.doesNotMatch(script, /tests\/\*/);
   assert.doesNotMatch(script, /docs\/superpowers/);
-  assert.ok(fs.existsSync(path.join(root, "dist/scroll2pdf-1.0.0.zip")));
+  assert.match(read(".gitignore"), /^dist\/$/m);
 });
 
 async function main() {

@@ -39,6 +39,7 @@
     const selectionBox = elements.interactionLayer.querySelector("#editor-selection");
     const structureBox = elements.interactionLayer.querySelector("#editor-structure-draft");
     const structureLabel = elements.interactionLayer.querySelector("#editor-structure-label");
+    const textDragHandle = elements.interactionLayer.querySelector("#editor-text-drag-handle");
     const textInput = elements.interactionLayer.querySelector("#editor-text-input");
     const mountedTiles = new Map();
     const cleanupListeners = [];
@@ -48,6 +49,8 @@
     let previewDocument = null;
     let structureDraft = null;
     let gesture = null;
+    let textDrag = null;
+    let textPositionChanged = false;
     let disposed = false;
     let displayScale = 1;
     let resizeObserver = null;
@@ -325,6 +328,8 @@
       gesture = null;
       selectedId = null;
       textInput.hidden = true;
+      textDragHandle.hidden = true;
+      textDrag = null;
       elements.interactionLayer.dataset.tool = tool;
       updateControls();
     }
@@ -384,27 +389,63 @@
       const origin = annotation?.geometry || point;
       textInput.value = annotation?.geometry?.text || "";
       Object.assign(textInput.style, {
-        left: `${origin.x * displayScale}px`,
-        top: `${origin.y * displayScale}px`,
         color: style.color,
         fontSize: `${Math.max(14, style.fontSize * displayScale)}px`,
       });
-      textInput.dataset.documentX = String(origin.x);
-      textInput.dataset.documentY = String(origin.y);
       textInput.dataset.editingId = annotation?.id || "";
       textInput.hidden = false;
+      textDragHandle.hidden = false;
+      textPositionChanged = false;
+      updateTextEditorPosition(origin.x, origin.y);
       textInput.focus();
+    }
+
+    function updateTextEditorPosition(xValue, yValue) {
+      const documentState = getDocument();
+      const displayWidth = documentState.width * displayScale;
+      const displayHeight = documentState.height * displayScale;
+      const maximumLeft = Math.max(0, displayWidth - textInput.offsetWidth);
+      const maximumTop = Math.max(0, displayHeight - textInput.offsetHeight);
+      const left = Math.max(0, Math.min(maximumLeft, Number(xValue) * displayScale));
+      const top = Math.max(0, Math.min(maximumTop, Number(yValue) * displayScale));
+      for (const element of [textInput, textDragHandle]) {
+        element.style.left = `${left}px`;
+        element.style.top = `${top}px`;
+      }
+      textInput.dataset.documentX = String(left / displayScale);
+      textInput.dataset.documentY = String(top / displayScale);
+    }
+
+    function hideTextInput() {
+      textInput.hidden = true;
+      textDragHandle.hidden = true;
+      textInput.dataset.editingId = "";
+      textDrag = null;
+      textPositionChanged = false;
     }
 
     function commitText() {
       if (textInput.hidden) return;
       const value = textInput.value.trim();
       const editingId = textInput.dataset.editingId;
-      textInput.hidden = true;
-      textInput.dataset.editingId = "";
+      const documentX = Number(textInput.dataset.documentX);
+      const documentY = Number(textInput.dataset.documentY);
+      const positionChanged = textPositionChanged;
+      hideTextInput();
       if (!value) return;
       if (editingId) {
-        session.commit(core.updateTextAnnotation(session.getState().document, editingId, value));
+        const current = session.getState().document;
+        const annotation = current.annotations.find((item) => item.id === editingId);
+        let next = core.updateTextAnnotation(current, editingId, value);
+        if (annotation && positionChanged) {
+          next = core.moveAnnotation(
+            next,
+            editingId,
+            documentX - annotation.geometry.x,
+            documentY - annotation.geometry.y,
+          );
+        }
+        session.commit(next);
         selectedId = editingId;
         refreshPreview();
         updateControls();
@@ -414,8 +455,8 @@
         id: `text-${Date.now()}-${++annotationSequence}`,
         type: "text",
         geometry: {
-          x: Number(textInput.dataset.documentX),
-          y: Number(textInput.dataset.documentY),
+          x: documentX,
+          y: documentY,
           text: value,
         },
         style: toolStyles.get("text"),
@@ -424,6 +465,52 @@
       selectedId = annotation.id;
       refreshPreview();
       updateControls();
+    }
+
+    function onTextDragStart(event) {
+      if (textInput.hidden || event.button > 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      textDrag = {
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        documentX: Number(textInput.dataset.documentX),
+        documentY: Number(textInput.dataset.documentY),
+        positionChanged: textPositionChanged,
+      };
+      try { textDragHandle.setPointerCapture(event.pointerId); } catch (_) {}
+    }
+
+    function onTextDragMove(event) {
+      if (!textDrag || event.pointerId !== textDrag.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      updateTextEditorPosition(
+        textDrag.documentX + (event.clientX - textDrag.clientX) / displayScale,
+        textDrag.documentY + (event.clientY - textDrag.clientY) / displayScale,
+      );
+      textPositionChanged = true;
+    }
+
+    function finishTextDrag(event, cancelled = false) {
+      if (!textDrag || event.pointerId !== textDrag.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const current = textDrag;
+      textDrag = null;
+      if (cancelled) {
+        updateTextEditorPosition(current.documentX, current.documentY);
+        textPositionChanged = current.positionChanged;
+      }
+      try { textDragHandle.releasePointerCapture(event.pointerId); } catch (_) {}
+      textInput.focus({ preventScroll: true });
+    }
+
+    function onTextDragLostCapture(event) {
+      if (!textDrag || event.pointerId !== textDrag.pointerId) return;
+      textDrag = null;
+      textInput.focus({ preventScroll: true });
     }
 
     function boundsForResize(bounds, handle, point) {
@@ -621,11 +708,10 @@
     }
 
     function onKeyDown(event) {
-      if (event.target === textInput) {
+      if (!textInput.hidden && (event.target === textInput || event.target === textDragHandle)) {
         if (event.key === "Escape") {
           event.preventDefault();
-          textInput.hidden = true;
-          textInput.dataset.editingId = "";
+          hideTextInput();
           elements.interactionLayer.focus();
         } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
@@ -728,6 +814,11 @@
     listen(elements.interactionLayer, "pointercancel", onPointerCancel);
     listen(elements.interactionLayer, "dblclick", onDoubleClick);
     listen(elements.interactionLayer, "keydown", onKeyDown);
+    listen(textDragHandle, "pointerdown", onTextDragStart);
+    listen(textDragHandle, "pointermove", onTextDragMove);
+    listen(textDragHandle, "pointerup", finishTextDrag);
+    listen(textDragHandle, "pointercancel", (event) => finishTextDrag(event, true));
+    listen(textDragHandle, "lostpointercapture", onTextDragLostCapture);
     listen(textInput, "blur", commitText);
     listen(undoButton, "click", undo);
     listen(redoButton, "click", redo);

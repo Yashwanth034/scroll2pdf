@@ -113,9 +113,13 @@ scroll2pdf/
 │   ├── run-extension-smoke.js
 │   ├── run-popup-e2e.js
 │   └── run-result-e2e.js
-└── docs/superpowers/
-    ├── plans/
-    └── specs/
+├── scripts/
+│   └── package-release.sh
+└── store/
+    ├── detailed-description.md
+    ├── permission-justification.md
+    ├── privacy-disclosure.md
+    └── short-description.txt
 ```
 
 ## Architecture
@@ -186,21 +190,28 @@ Stages 4 and 5 add **no new permission**. The extension does not request `downlo
 
 ## Load manually in Chrome
 
+Clone or download this repository:
+
+```bash
+git clone https://github.com/Yashwanth034/scroll2pdf.git
+cd scroll2pdf
+```
+
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select the project folder containing `manifest.json` (for example `/home/yash/Videos/scroll2pdf`).
+4. Select the cloned project folder containing `manifest.json`.
 5. Pin Scroll2PDF from the Extensions menu if desired.
 6. After source changes, return to `chrome://extensions` and click Scroll2PDF's **Reload** button.
 
-Chrome shows its generic extension icon because fake/corrupt placeholder images are intentionally not packaged.
+The repository includes packaged extension icons for every Chrome-required size.
 
 ## Automated checks
 
 From the project folder:
 
 ```bash
-cd /home/yash/Videos/scroll2pdf
+cd scroll2pdf
 node tests/run-tests.js
 node tests/run-stage2-tests.js
 node tests/run-stage3-tests.js
@@ -340,3 +351,5 @@ Keep the capture tab active while viewport screenshots are being taken.
 ## Security and privacy
 
 All scripts, styles, DOM inspection, anchor identities, capture data, image processing, PDF generation, temporary storage, result display, and downloading remain local. Scroll2PDF never uploads chat text or screenshots, calls WhatsApp/Telegram backends, extracts tokens, or sends analytics. There are no external scripts, fonts, CDNs, `eval`, inline extension JavaScript, external screenshot/PDF services, or webpage data transmissions. Captures persist only through the existing temporary result/download flow.
+
+For sensitive security reports, do not post private captures, page content, credentials, or exploit details in a public issue. Open a minimal issue requesting a private reporting channel without including sensitive information.

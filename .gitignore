@@ -1,2 +1,22 @@
+# Generated release archives
+dist/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and test output
+node_modules/
+coverage/
+*.log
+
+# Editor and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local development tools
 .freebuff/
 .superpowers/

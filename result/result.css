@@ -372,7 +372,8 @@ main {
   z-index: 3;
   width: min(320px, 70%);
   min-height: 74px;
-  padding: 8px 10px;
+  padding: 8px 10px 8px 44px;
+  box-sizing: border-box;
   border: 1px solid var(--blue);
   border-radius: 8px;
   outline: 0;
@@ -381,6 +382,34 @@ main {
   font-family: inherit;
   font-weight: 700;
   resize: both;
+}
+
+.editor-text-drag-handle {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid rgba(120, 169, 255, 0.46);
+  border-bottom: 1px solid rgba(120, 169, 255, 0.46);
+  border-radius: 8px 0 7px;
+  background: rgba(78, 136, 247, 0.22);
+  color: #dce9ff;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+}
+
+.editor-text-drag-handle:active { cursor: grabbing; }
+
+.editor-text-drag-handle:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -3px;
 }
 
 .editor-structure-draft {

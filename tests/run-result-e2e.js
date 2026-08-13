@@ -187,6 +187,11 @@ const resultStoreStub = `
       15000,
       "result preview",
     );
+    await waitFor(
+      () => evaluate("!document.getElementById('editor-toolbar').hidden"),
+      15000,
+      "image editor",
+    );
 
     check("result filename renders", await evaluate("document.getElementById('result-title').textContent.includes('scroll2pdf-example.com')"));
     check("bitmap dimensions render", await evaluate("document.getElementById('result-dimensions').textContent.includes('1,000 × 2,500 px')"));
@@ -334,28 +339,120 @@ const resultStoreStub = `
         clientX: bounds.left + 520, clientY: bounds.top + 180,
       }));
       const input = document.getElementById('editor-text-input');
+      const inputBounds = input.getBoundingClientRect();
+      window.__textInputStartPosition = { left: inputBounds.left, top: inputBounds.top };
       input.value = 'Important detail';
-      input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', ctrlKey: true }));
     })()`);
+    check("open text editor can be dragged before saving", await evaluate(`(() => {
+      const input = document.getElementById('editor-text-input');
+      const handle = document.getElementById('editor-text-drag-handle');
+      if (!handle) return false;
+      const bounds = handle.getBoundingClientRect();
+      const event = (type, x, y, buttons) => handle.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, pointerId: 91, pointerType: 'mouse', buttons, clientX: x, clientY: y,
+      }));
+      event('pointerdown', bounds.left + 8, bounds.top + 8, 1);
+      event('pointermove', bounds.left + 88, bounds.top + 58, 1);
+      event('pointerup', bounds.left + 88, bounds.top + 58, 0);
+      const movedBounds = input.getBoundingClientRect();
+      return movedBounds.left > window.__textInputStartPosition.left + 50
+        && movedBounds.top > window.__textInputStartPosition.top + 25;
+    })()`));
+    await evaluate(`document.getElementById('editor-text-input').dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', ctrlKey: true })
+    )`);
     check("Text tool commits an inline text annotation",
-      await evaluate("document.getElementById('editor-interaction-layer').dataset.annotationCount === '2' && document.getElementById('editor-text-input').hidden"));
-    await evaluate(`(() => {
+      await evaluate(`(() => {
+        const selection = document.getElementById('editor-selection');
+        window.__committedTextSelection = {
+          left: parseFloat(selection.style.left),
+          top: parseFloat(selection.style.top),
+          width: parseFloat(selection.style.width),
+          height: parseFloat(selection.style.height),
+        };
+        return document.getElementById('editor-interaction-layer').dataset.annotationCount === '2'
+          && document.getElementById('editor-text-input').hidden;
+      })()`));
+    const reopenedTextState = await evaluate(`(() => {
       document.querySelector('[data-editor-tool="select"]').click();
       const layer = document.getElementById('editor-interaction-layer');
-      const bounds = layer.getBoundingClientRect();
+      const layerBounds = layer.getBoundingClientRect();
+      const selection = window.__committedTextSelection;
       layer.dispatchEvent(new MouseEvent('dblclick', {
-        bubbles: true, clientX: bounds.left + 540, clientY: bounds.top + 190,
+        bubbles: true,
+        clientX: layerBounds.left + selection.left + selection.width / 2,
+        clientY: layerBounds.top + selection.top + selection.height / 2,
       }));
+      return {
+        hidden: document.getElementById('editor-text-input').hidden,
+        selectedText: layer.dataset.selectedText,
+        tool: layer.dataset.tool,
+        selection,
+      };
     })()`);
     check("double-clicking selected text reopens the inline editor",
-      await evaluate("!document.getElementById('editor-text-input').hidden && document.getElementById('editor-text-input').value === 'Important detail'"));
+      !reopenedTextState.hidden && reopenedTextState.selectedText === "Important detail",
+      JSON.stringify(reopenedTextState));
     await evaluate(`(() => {
       const input = document.getElementById('editor-text-input');
+      const handle = document.getElementById('editor-text-drag-handle');
+      const bounds = handle.getBoundingClientRect();
+      const event = (type, x, y, buttons) => handle.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, pointerId: 92, pointerType: 'mouse', buttons, clientX: x, clientY: y,
+      }));
+      event('pointerdown', bounds.left + 8, bounds.top + 8, 1);
+      event('pointermove', bounds.left - 62, bounds.top + 58, 1);
+      event('pointerup', bounds.left - 62, bounds.top + 58, 0);
       input.value = 'Important detail\\nSecond line';
       input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', ctrlKey: true }));
     })()`);
-    check("reopened text updates in place with multiline content",
-      await evaluate("document.getElementById('editor-interaction-layer').dataset.annotationCount === '2' && document.getElementById('editor-interaction-layer').dataset.selectedText === 'Important detail\\nSecond line'"));
+    const movedEditedText = await evaluate(`(() => {
+      const layer = document.getElementById('editor-interaction-layer');
+      const selection = document.getElementById('editor-selection');
+      return {
+        annotationCount: layer.dataset.annotationCount,
+        text: layer.dataset.selectedText,
+        left: parseFloat(selection.style.left),
+        top: parseFloat(selection.style.top),
+      };
+    })()`);
+    check("reopened text moves and updates in one commit",
+      movedEditedText.annotationCount === "2"
+        && movedEditedText.text === "Important detail\nSecond line"
+        && movedEditedText.left < Number(reopenedTextState.selection.left) - 40
+        && movedEditedText.top > Number(reopenedTextState.selection.top) + 30,
+      JSON.stringify(movedEditedText));
+    await evaluate("document.getElementById('editor-undo').click()");
+    const undoneTextEdit = await evaluate(`(() => {
+      const layer = document.getElementById('editor-interaction-layer');
+      const selection = document.getElementById('editor-selection');
+      return {
+        text: layer.dataset.selectedText,
+        left: parseFloat(selection.style.left),
+        top: parseFloat(selection.style.top),
+      };
+    })()`);
+    check("one Undo restores the text and position from before inline editing",
+      undoneTextEdit.text === "Important detail"
+        && Math.abs(undoneTextEdit.left - Number(reopenedTextState.selection.left)) < 1
+        && Math.abs(undoneTextEdit.top - Number(reopenedTextState.selection.top)) < 1,
+      JSON.stringify(undoneTextEdit));
+    await evaluate("document.getElementById('editor-redo').click()");
+    const handleEscapeCancelled = await evaluate(`(() => {
+      const layer = document.getElementById('editor-interaction-layer');
+      const selection = document.getElementById('editor-selection');
+      const layerBounds = layer.getBoundingClientRect();
+      layer.dispatchEvent(new MouseEvent('dblclick', {
+        bubbles: true,
+        clientX: layerBounds.left + parseFloat(selection.style.left) + parseFloat(selection.style.width) / 2,
+        clientY: layerBounds.top + parseFloat(selection.style.top) + parseFloat(selection.style.height) / 2,
+      }));
+      const handle = document.getElementById('editor-text-drag-handle');
+      handle.focus();
+      handle.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
+      return document.getElementById('editor-text-input').hidden && handle.hidden;
+    })()`);
+    check("Escape cancels inline text editing while the move handle is focused", handleEscapeCancelled);
     await evaluate(`(() => {
       document.querySelector('[data-editor-tool="pen"]').click();
       const layer = document.getElementById('editor-interaction-layer');
