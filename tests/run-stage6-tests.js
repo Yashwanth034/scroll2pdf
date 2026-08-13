@@ -92,6 +92,7 @@ test("release packaging excludes development fixtures and keeps generated archiv
   const script = read("scripts/package-release.sh");
   assert.match(script, /zip -q -r/);
   assert.match(script, /manifest\.json/);
+  assert.match(script, /copy LICENSE/);
   assert.match(script, /background\/\*\.js/);
   assert.match(script, /result\/\*\.js/);
   assert.doesNotMatch(script, /tests\/\*/);

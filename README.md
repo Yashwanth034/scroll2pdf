@@ -353,3 +353,9 @@ Keep the capture tab active while viewport screenshots are being taken.
 All scripts, styles, DOM inspection, anchor identities, capture data, image processing, PDF generation, temporary storage, result display, and downloading remain local. Scroll2PDF never uploads chat text or screenshots, calls WhatsApp/Telegram backends, extracts tokens, or sends analytics. There are no external scripts, fonts, CDNs, `eval`, inline extension JavaScript, external screenshot/PDF services, or webpage data transmissions. Captures persist only through the existing temporary result/download flow.
 
 For sensitive security reports, do not post private captures, page content, credentials, or exploit details in a public issue. Open a minimal issue requesting a private reporting channel without including sensitive information.
+
+## License
+
+Scroll2PDF is available under the [MIT License](LICENSE).
+
+Copyright (c) 2026 Yashwanth.
