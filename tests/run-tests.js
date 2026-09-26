@@ -33,7 +33,7 @@ test("manifest preserves the MV3 foundation with scoped local capture modules", 
 
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.name, "Scroll2PDF");
-  assert.equal(manifest.version, "1.0.0");
+  assert.equal(manifest.version, "1.0.1");
   assert.equal(manifest.action.default_popup, "popup/popup.html");
   assert.equal(manifest.background.service_worker, "background/background.js");
   assert.deepEqual(manifest.permissions.sort(), ["activeTab", "offscreen", "scripting"]);

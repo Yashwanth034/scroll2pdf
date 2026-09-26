@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Scroll2PDF",
   "description": "Capture full webpages, scrollable areas, and selected regions as long images or clean A4 PDFs.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minimum_chrome_version": "109",
   "action": {
     "default_title": "Open Scroll2PDF",
