@@ -47,6 +47,13 @@
               </span>
               <span class="selection-indicator" aria-hidden="true"></span>
             </label>
+            <div id="scrollable-from-start-option" class="screenshot-area-option mode-suboption" hidden>
+              <input type="checkbox" name="scrollableFromStart" id="scrollable-from-start">
+              <label for="scrollable-from-start">
+                <span class="screenshot-area-option__copy">Capture from start of chat</span>
+                <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
 
             <input class="choice-input" type="radio" name="captureMode" id="mode-selected-area" value="selected-area">
             <label class="mode-card" for="mode-selected-area">
@@ -57,6 +64,13 @@
               </span>
               <span class="selection-indicator" aria-hidden="true"></span>
             </label>
+            <div id="selected-area-manual-option" class="screenshot-area-option mode-suboption" hidden>
+              <input type="checkbox" name="manualSelectedAreaScroll" id="selected-area-manual-scroll">
+              <label for="selected-area-manual-scroll">
+                <span class="screenshot-area-option__copy">Choose capture length manually</span>
+                <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
 
             <input class="choice-input" type="radio" name="captureMode" id="mode-normal-screenshot" value="normal-screenshot">
             <label class="mode-card" for="mode-normal-screenshot">
@@ -67,14 +81,13 @@
               </span>
               <span class="selection-indicator" aria-hidden="true"></span>
             </label>
-          </div>
-
-          <div id="screenshot-area-option" class="screenshot-area-option" hidden>
-            <input type="checkbox" name="selectScreenshotArea" id="select-screenshot-area">
-            <label for="select-screenshot-area">
-              <span class="screenshot-area-option__copy">Select area before capture</span>
-              <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
-            </label>
+            <div id="screenshot-area-option" class="screenshot-area-option mode-suboption" hidden>
+              <input type="checkbox" name="selectScreenshotArea" id="select-screenshot-area">
+              <label for="select-screenshot-area">
+                <span class="screenshot-area-option__copy">Select area before capture</span>
+                <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
           </div>
         </fieldset>
 

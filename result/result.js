@@ -73,8 +73,7 @@
     const copy = document.getElementById("copy-image");
     const editorToolbar = document.getElementById("editor-toolbar");
     const resultHeader = document.querySelector(".result-header");
-    const pdfCard = document.getElementById("pdf-result-card");
-    const pdfSummary = document.getElementById("pdf-result-summary");
+
     const resultId = new URLSearchParams(location.search).get("id");
 
     close.addEventListener("click", () => window.close());
@@ -112,8 +111,6 @@
         const pdfPreview = document.getElementById("pdf-preview-surface");
         const pdfFrame = document.getElementById("result-pdf");
         const pdfLabel = document.getElementById("pdf-preview-label");
-        pdfSummary.textContent = view.summary;
-        pdfCard.hidden = false;
         preview.hidden = true;
         pdfFrame.addEventListener("load", () => {
           pdfLabel.textContent = "Previewing the captured PDF · scroll to review every page · Download to save";
@@ -128,7 +125,6 @@
       } else {
         image.src = imageObjectUrl;
         preview.hidden = false;
-        pdfCard.hidden = true;
         activeEditor = await globalScope.Scroll2PDFEditorController.create({
           record,
           elements: {

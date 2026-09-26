@@ -5,9 +5,13 @@
 
   const { isVerticallyScrollableCandidate } = globalScope.Scroll2PDFCaptureUtils;
   const MAX_CANDIDATES = 160;
-  const GENERIC_MESSAGE_SELECTOR = [
+  const STRONG_CHAT_MESSAGE_SELECTOR = [
     "[data-message-id]",
+    "[data-message-author-role]",
     "[data-mid]",
+  ].join(",");
+  const GENERIC_MESSAGE_SELECTOR = [
+    STRONG_CHAT_MESSAGE_SELECTOR,
     "[data-id]",
     "[data-timestamp]",
     "[role=\"listitem\"]",
@@ -92,8 +96,10 @@
       const role = roleFor(element);
       const semantic = role === "log" || role === "feed" ? 0.44 : role === "list" ? 0.22 : 0;
       const messageScore = Math.min(0.4, messageLikeCount(element) * 0.05);
+      const strongChatCount = messageLikeCount(element, STRONG_CHAT_MESSAGE_SELECTOR);
+      const strongChatScore = strongChatCount >= 3 ? 0.22 : strongChatCount >= 1 ? 0.08 : 0;
       const overflowScore = element.scrollHeight > element.clientHeight * 2 ? 0.12 : 0.04;
-      return semantic + messageScore + overflowScore;
+      return semantic + messageScore + strongChatScore + overflowScore;
     });
     if (!best || best.score < 0.68) return null;
     const nearBottom = Number(best.element.scrollTop) + Number(best.element.clientHeight)
@@ -114,6 +120,7 @@
   Object.defineProperty(globalScope, "Scroll2PDFGenericChatAdapter", {
     value: Object.freeze({
       GENERIC_MESSAGE_SELECTOR,
+      STRONG_CHAT_MESSAGE_SELECTOR,
       chooseBest,
       collectPotentialScrollers,
       detect,

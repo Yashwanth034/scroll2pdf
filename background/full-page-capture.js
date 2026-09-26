@@ -219,7 +219,7 @@
             },
           });
           if (result?.resultId && deps.openResult) {
-            await deps.openResult(result.resultId);
+            await deps.openResult(result.resultId, operation.windowId);
           }
           return { ok: true, result };
         })
@@ -342,13 +342,6 @@
         }
         await deps.assertTargetActive(operation);
 
-        if (operation.completed > 0 && !stallRetrying) {
-          requireMessageResponse(await deps.sendTabMessage(operation.tabId, {
-            type: MESSAGE_TYPES.SET_CAPTURE_OVERLAYS_HIDDEN,
-            payload: { captureId: operation.captureId },
-          }), "Could not prepare repeated page overlays.");
-        }
-
         if (!stallRetrying) {
           const waitForThrottle = Math.max(
             0,
@@ -357,6 +350,19 @@
           if (waitForThrottle > 0) {
             await deps.delay(waitForThrottle);
           }
+          throwIfCancelled(operation);
+
+          // Hide capture-time overlays immediately before the screenshot. Some
+          // sites recreate consent/floating UI a few milliseconds after scroll.
+          const overlayMessage = operation.completed === 0
+            ? MESSAGE_TYPES.SET_INITIAL_FIXED_OVERLAYS_HIDDEN
+            : MESSAGE_TYPES.SET_CAPTURE_OVERLAYS_HIDDEN;
+          requireMessageResponse(await deps.sendTabMessage(operation.tabId, {
+            type: overlayMessage,
+            payload: { captureId: operation.captureId },
+          }), operation.completed === 0
+            ? "Could not prepare fixed page overlays."
+            : "Could not prepare repeated page overlays.");
           throwIfCancelled(operation);
 
           const imageFormat = getImageFormat(operation.configuration.quality);
@@ -675,8 +681,16 @@
   }
 
   async function getActiveTab() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tab;
+    const activeTabs = await chrome.tabs.query({ active: true });
+    const captureableTabs = activeTabs
+      .filter((tab) => tab?.id && Number.isInteger(tab.windowId) && !isRestrictedCaptureUrl(tab.url))
+      .sort((left, right) => (Number(right.lastAccessed) || 0) - (Number(left.lastAccessed) || 0));
+    if (captureableTabs.length) return captureableTabs[0];
+
+    const [focusedTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (focusedTab) return focusedTab;
+    const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return currentTab;
   }
 
   // Pages opened before the extension was installed or reloaded do not have the
@@ -730,7 +744,9 @@
       ensureOffscreen,
       ensureContentScripts: ensureContentScriptsInTab,
       getActiveTab,
-      openResult: (resultId) => chrome.tabs.create({
+      openResult: (resultId, windowId) => chrome.tabs.create({
+        windowId,
+        active: true,
         url: chrome.runtime.getURL(`result/result.html?id=${encodeURIComponent(resultId)}`),
       }),
       sendOffscreen: (message) => chrome.runtime.sendMessage(message),

@@ -47,6 +47,8 @@ if (typeof importScripts === "function") {
     "quality",
     "orientation",
     "selectScreenshotArea",
+    "manualSelectedAreaScroll",
+    "scrollableFromStart",
   ]);
   const ALLOWED_VALUES = Object.freeze({
     captureMode: new Set(Object.values(CAPTURE_MODES)),
@@ -54,6 +56,8 @@ if (typeof importScripts === "function") {
     quality: new Set(Object.values(QUALITY_LEVELS)),
     orientation: new Set(Object.values(ORIENTATIONS)),
     selectScreenshotArea: new Set([false, true]),
+    manualSelectedAreaScroll: new Set([false, true]),
+    scrollableFromStart: new Set([false, true]),
   });
   const captureManager = globalScope.Scroll2PDFFullPageCapture.createCaptureManager();
 
@@ -86,6 +90,10 @@ if (typeof importScripts === "function") {
         quality: isScreenshot ? QUALITY_LEVELS.HIGH : configuration.quality,
         orientation: configuration.orientation,
         selectScreenshotArea: isScreenshot && configuration.selectScreenshotArea,
+        manualSelectedAreaScroll: configuration.captureMode === CAPTURE_MODES.SELECTED_AREA
+          && configuration.manualSelectedAreaScroll,
+        scrollableFromStart: configuration.captureMode === CAPTURE_MODES.SCROLLABLE_AREA
+          && configuration.scrollableFromStart,
       }),
     };
   }

@@ -421,7 +421,8 @@ test("result view model separates PDF metadata from Long Image preview", () => {
   assert.equal(image.isPdf, false);
   assert.equal(image.metadata, "Full Page · PNG");
   assert.equal(image.downloadLabel, "Download Image");
-  assert.match(read("result/result.html"), /id="pdf-result-card"/);
+  assert.doesNotMatch(read("result/result.html"), /id="pdf-result-card"/);
+  assert.match(read("result/result.html"), /id="pdf-preview-surface"/);
 });
 
 test("Stage 4 packaging adds no permission, remote code, PDF library, or Stage 5 logic", () => {

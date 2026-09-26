@@ -25,6 +25,10 @@
     }
     configuration.selectScreenshotArea = configuration.captureMode === "normal-screenshot"
       && Boolean(form.querySelector("#select-screenshot-area")?.checked);
+    configuration.manualSelectedAreaScroll = configuration.captureMode === "selected-area"
+      && Boolean(form.querySelector("#selected-area-manual-scroll")?.checked);
+    configuration.scrollableFromStart = configuration.captureMode === "scrollable-area"
+      && Boolean(form.querySelector("#scrollable-from-start")?.checked);
     return configuration;
   }
 
@@ -54,8 +58,14 @@
     for (const input of elements.qualitySetting.querySelectorAll("input")) {
       input.disabled = isScreenshot;
     }
+    const isSelectedArea = selected.value === "selected-area";
+    const isScrollableArea = selected.value === "scrollable-area";
     elements.screenshotAreaOption.hidden = !isScreenshot;
     elements.screenshotAreaToggle.disabled = !isScreenshot;
+    elements.selectedAreaManualOption.hidden = !isSelectedArea;
+    elements.selectedAreaManualToggle.disabled = !isSelectedArea;
+    elements.scrollableFromStartOption.hidden = !isScrollableArea;
+    elements.scrollableFromStartToggle.disabled = !isScrollableArea;
   }
 
   function syncOutputUi(elements) {
@@ -150,6 +160,10 @@
       outputSection: document.getElementById("output-section"),
       qualitySetting: document.getElementById("quality-setting"),
       settingsGrid: document.querySelector(".settings-grid"),
+      scrollableFromStartOption: document.getElementById("scrollable-from-start-option"),
+      scrollableFromStartToggle: document.getElementById("scrollable-from-start"),
+      selectedAreaManualOption: document.getElementById("selected-area-manual-option"),
+      selectedAreaManualToggle: document.getElementById("selected-area-manual-scroll"),
       screenshotAreaOption: document.getElementById("screenshot-area-option"),
       screenshotAreaToggle: document.getElementById("select-screenshot-area"),
     };
