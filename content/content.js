@@ -33,7 +33,10 @@
       if (regionSession) throw new Error("Another page selection is already active.");
       regionSession = { captureId: payload.captureId, mode: payload.captureMode };
       try {
-        const response = await regionAdapter(payload.captureMode).startSelection(payload.captureId);
+        const response = await regionAdapter(payload.captureMode).startSelection(payload.captureId, {
+          manualScroll: Boolean(payload.manualSelectedAreaScroll),
+          fromStart: Boolean(payload.scrollableFromStart),
+        });
         if (!response?.ok) regionSession = null;
         return response;
       } catch (error) {

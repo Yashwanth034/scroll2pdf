@@ -374,7 +374,9 @@
     const pdf = globalScope.Scroll2PDFPdfGenerator;
     const pageSpec = pdfUtils.getA4PageSpec(payload.orientation || "portrait");
     const layout = pdfUtils.calculatePdfLayout(firstCrop.width, sourceHeightBitmap, pageSpec);
-    const writer = pdf.createPdfWriter(pageSpec, payload.filename);
+    const pdfFilename = String(payload.filename || "scroll2pdf.pdf")
+      .replace(/\.[^.]+$/, ".pdf");
+    const writer = pdf.createPdfWriter(pageSpec, pdfFilename);
     const cropFor = (frame) => convertCssRectToBitmapCrop({
       rect: frame.cropRectCss,
       viewportCssWidth: frame.viewportCssWidth,
@@ -383,7 +385,16 @@
       bitmapHeight: frame.bitmapHeight,
     });
     const searchWindow = pdfUtils.getSmartBreakSearchWindow(sourceHeightBitmap);
-    const bufferCapacity = Math.ceil(layout.sourcePixelsPerPage + searchWindow + 96);
+    const maximumFrameHeight = frames.reduce((maximum, frame) => {
+      const crop = cropFor(frame);
+      return Math.max(maximum, crop.height);
+    }, firstCrop.height);
+    // Keep one complete incoming viewport beyond the page + seam-search region.
+    // Without this headroom a frame can be clipped before the paginator gets a
+    // chance to emit the previous page, which produces missing/overlapping text.
+    const bufferCapacity = Math.ceil(
+      layout.sourcePixelsPerPage + searchWindow + maximumFrameHeight + 16,
+    );
     const buffer = document.createElement("canvas");
     buffer.width = firstCrop.width;
     buffer.height = Math.max(bufferCapacity, 128);
@@ -462,7 +473,7 @@
         bytes: writer.build(),
         width: firstCrop.width,
         height: sourceHeightBitmap,
-        filename: payload.filename,
+        filename: pdfFilename,
         captureMode: payload.captureMode,
         captureModeLabel: payload.captureModeLabel,
         orientation: payload.orientation,

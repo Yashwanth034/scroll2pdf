@@ -25,14 +25,14 @@
     if (/conversation changed|context changed/i.test(raw)) {
       return { message: "The conversation changed during capture.", guidance: "Open the chat you want and start again." };
     }
-    if (/too long|frame safety|maximum capture length/i.test(raw)) {
-      return { message: "The chat exceeded the maximum capture length.", guidance: "Capture a smaller section or shorter conversation." };
-    }
     if (/canvas|pixel area|dimension|too long to capture in one image/i.test(raw)) {
       return {
         message: "This page is too long to capture as one image.",
         guidance: "Choose PDF output to paginate long pages automatically, or capture a shorter area.",
       };
+    }
+    if (/frame safety|maximum capture length/i.test(raw)) {
+      return { message: "The selected content exceeded the maximum capture length.", guidance: "Capture a smaller section or shorter conversation." };
     }
     if (/cancel/i.test(raw)) return { message: "Capture cancelled", guidance: "" };
     return { message: "Scroll2PDF could not complete this capture.", guidance: "Keep the page active and try again." };

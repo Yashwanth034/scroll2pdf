@@ -73,6 +73,8 @@
         payload: {
           captureId: operation.captureId,
           captureMode: operation.configuration.captureMode,
+          manualSelectedAreaScroll: Boolean(operation.configuration.manualSelectedAreaScroll),
+          scrollableFromStart: Boolean(operation.configuration.scrollableFromStart),
         },
       });
       if (selected?.cancelled) {

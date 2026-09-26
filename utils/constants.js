@@ -44,6 +44,7 @@
     PREPARE_FULL_PAGE_CAPTURE: "PREPARE_FULL_PAGE_CAPTURE",
     GET_PAGE_METRICS: "GET_PAGE_METRICS",
     SCROLL_TO_POSITION: "SCROLL_TO_POSITION",
+    SET_INITIAL_FIXED_OVERLAYS_HIDDEN: "SET_INITIAL_FIXED_OVERLAYS_HIDDEN",
     SET_CAPTURE_OVERLAYS_HIDDEN: "SET_CAPTURE_OVERLAYS_HIDDEN",
     RESTORE_PAGE: "RESTORE_PAGE",
     GET_CAPTURE_STATUS: "GET_CAPTURE_STATUS",
@@ -140,6 +141,8 @@
     quality: QUALITY_LEVELS.HIGH,
     orientation: ORIENTATIONS.PORTRAIT,
     selectScreenshotArea: false,
+    manualSelectedAreaScroll: false,
+    scrollableFromStart: false,
   });
 
   Object.defineProperty(globalScope, "Scroll2PDFConstants", {

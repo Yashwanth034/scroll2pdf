@@ -103,7 +103,7 @@ function report(name, condition, detail = "") {
     const webPort = server.address().port;
     const smokePageUrl = `http://127.0.0.1:${webPort}/`;
 
-    browser = spawn("google-chrome", [
+    browser = spawn(process.env.S2P_CHROME || "google-chrome", [
       "--headless=new",
       "--no-sandbox",
       "--disable-gpu",

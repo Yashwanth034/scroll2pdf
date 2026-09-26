@@ -200,6 +200,8 @@ test("shared defaults produce the required initial capture configuration", () =>
     quality: "high",
     orientation: "portrait",
     selectScreenshotArea: false,
+    manualSelectedAreaScroll: false,
+    scrollableFromStart: false,
   }));
   assert.equal(constants.MESSAGE_TYPES.START_CAPTURE, "START_CAPTURE");
   assert.equal(constants.MESSAGE_TYPES.CAPTURE_PROGRESS, "CAPTURE_PROGRESS");
@@ -223,12 +225,16 @@ test("popup markup supplies semantic single-choice groups and safe local scripts
   assert.equal((html.match(/name="quality"/g) || []).length, 2);
   assert.equal((html.match(/name="orientation"/g) || []).length, 2);
   assert.equal((html.match(/name="selectScreenshotArea"/g) || []).length, 1);
+  assert.equal((html.match(/name="manualSelectedAreaScroll"/g) || []).length, 1);
+  assert.equal((html.match(/name="scrollableFromStart"/g) || []).length, 1);
   assert.match(html, /value="full-page"\s+checked/);
   assert.match(html, /value="a4-pdf"\s+checked/);
   assert.match(html, /value="high"\s+checked/);
   assert.match(html, /value="portrait"\s+checked/);
   assert.match(html, /<input[^>]+type="checkbox"[^>]+id="select-screenshot-area"/);
   assert.match(html, /for="select-screenshot-area"[^>]*>[\s\S]*Select area before capture/);
+  assert.match(html, /for="selected-area-manual-scroll"[^>]*>[\s\S]*Choose capture length manually/);
+  assert.match(html, /for="scrollable-from-start"[^>]*>[\s\S]*Capture from start of chat/);
   assert.match(html, /id="capture-status"[^>]+role="status"[^>]+aria-live="polite"/);
   assert.match(html, /<button[^>]+type="submit"[^>]*>[\s\S]*Start Capture[\s\S]*<\/button>/);
   assert.match(html, /id="cancel-capture"[^>]+type="button"/);
@@ -244,10 +250,14 @@ test("popup builds and sends the selected configuration as START_CAPTURE", async
     quality: "standard",
     orientation: "landscape",
     selectScreenshotArea: false,
+    manualSelectedAreaScroll: true,
+    scrollableFromStart: false,
   };
   const form = {
     querySelector(selector) {
       if (selector === "#select-screenshot-area") return { checked: true };
+      if (selector === "#selected-area-manual-scroll") return { checked: true };
+      if (selector === "#scrollable-from-start") return { checked: true };
       const name = selector.match(/name="([^"]+)"/)[1];
       return { value: selected[name] };
     },
@@ -301,6 +311,8 @@ test("background accepts complete known settings and rejects malformed settings"
     quality: "high",
     orientation: "portrait",
     selectScreenshotArea: true,
+    manualSelectedAreaScroll: false,
+    scrollableFromStart: false,
   };
 
   const valid = api.validateCaptureConfiguration(validConfig);
@@ -312,12 +324,16 @@ test("background accepts complete known settings and rejects malformed settings"
     quality: "standard",
     orientation: "landscape",
     selectScreenshotArea: true,
+    manualSelectedAreaScroll: false,
+    scrollableFromStart: false,
   });
   assert.equal(screenshot.valid, true);
   assert.equal(screenshot.configuration.outputType, "long-image");
   assert.equal(screenshot.configuration.quality, "high");
   assert.equal(screenshot.configuration.selectScreenshotArea, true);
   assert.equal(api.validateCaptureConfiguration({ ...validConfig, selectScreenshotArea: "true" }).valid, false);
+  assert.equal(api.validateCaptureConfiguration({ ...validConfig, manualSelectedAreaScroll: "true" }).valid, false);
+  assert.equal(api.validateCaptureConfiguration({ ...validConfig, scrollableFromStart: "true" }).valid, false);
   assert.equal(api.validateCaptureConfiguration({ ...validConfig, quality: "ultra" }).valid, false);
   assert.equal(api.validateCaptureConfiguration({ ...validConfig, unexpected: true }).valid, false);
   assert.equal(api.validateCaptureConfiguration(null).valid, false);

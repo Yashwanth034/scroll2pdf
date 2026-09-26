@@ -10,7 +10,11 @@
     normalizeSelectionRect,
     windowCanScroll,
   } = globalScope.Scroll2PDFCaptureUtils;
-  const { createOneShotOutcome, createSelectionOverlay } = globalScope.Scroll2PDFSelectionOverlay;
+  const {
+    createCleanupBag,
+    createOneShotOutcome,
+    createSelectionOverlay,
+  } = globalScope.Scroll2PDFSelectionOverlay;
   const stability = globalScope.Scroll2PDFCaptureStability;
   let session = null;
 
@@ -31,38 +35,211 @@
   // inner container. In the latter case the crop is clipped to that container and
   // the capture scrolls it directly so the area advances instead of stalling.
   function resolveScrollerForSelection(state, rect) {
-    if (windowCanScroll(window, document)) {
-      return { type: "window" };
-    }
     const centerX = rect.left + (rect.width / 2);
     const centerY = rect.top + (rect.height / 2);
     const elements = document.elementsFromPoint(centerX, centerY)
       .filter((element) => element !== state.overlay?.host);
     const element = findScrollableAncestor(elements, window, document);
-    if (!element) {
-      return { type: "none" };
+    if (element) {
+      const containerRect = element.getBoundingClientRect();
+      const clipped = {
+        left: Math.max(rect.left, containerRect.left),
+        top: Math.max(rect.top, containerRect.top),
+        right: Math.min(rect.right, containerRect.right),
+        bottom: Math.min(rect.bottom, containerRect.bottom),
+      };
+      clipped.width = clipped.right - clipped.left;
+      clipped.height = clipped.bottom - clipped.top;
+      if (isSelectionLargeEnough(clipped)) {
+        return {
+          type: "element",
+          element,
+          originalScrollTop: Math.max(0, Number(element.scrollTop) || 0),
+          clipped,
+        };
+      }
     }
-    const containerRect = element.getBoundingClientRect();
-    const clipped = {
-      left: Math.max(rect.left, containerRect.left),
-      top: Math.max(rect.top, containerRect.top),
-      right: Math.min(rect.right, containerRect.right),
-      bottom: Math.min(rect.bottom, containerRect.bottom),
-    };
-    clipped.width = clipped.right - clipped.left;
-    clipped.height = clipped.bottom - clipped.top;
-    if (!isSelectionLargeEnough(clipped)) {
-      return { type: "none" };
+    if (windowCanScroll(window, document)) {
+      return { type: "window" };
     }
-    return {
-      type: "element",
-      element,
-      originalScrollTop: Math.max(0, Number(element.scrollTop) || 0),
-      clipped,
-    };
+    return { type: "none" };
   }
 
-  function startSelection(captureId) {
+  async function restoreManualStartPosition(state) {
+    if (state.scroller?.type === "element" && state.scroller.element?.isConnected) {
+      state.scroller.element.scrollTop = state.scroller.originalScrollTop;
+      await globalScope.Scroll2PDFPageCapture.settlePage();
+      return;
+    }
+    window.scrollTo({ left: state.originalX, top: state.originalY, behavior: "auto" });
+    await globalScope.Scroll2PDFPageCapture.settlePage();
+  }
+
+  function startManualExtentSelection(state, outcome) {
+    state.overlay?.cleanup();
+    state.phase = "manual-scroll";
+    const cleanupBag = createCleanupBag();
+    const host = document.createElement("div");
+    host.id = "scroll2pdf-manual-scroll-host";
+    host.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;";
+    const shadow = host.attachShadow({ mode: "closed" });
+    const style = document.createElement("style");
+    style.textContent = `
+      :host { all: initial; }
+      .selection-window { position: fixed; box-sizing: border-box; border: 2px solid #45e0c4;
+        border-radius: 4px; box-shadow: 0 0 0 9999px rgba(4,10,18,.38), inset 0 0 0 1px rgba(255,255,255,.14);
+        pointer-events: auto; overscroll-behavior: contain; touch-action: none; cursor: ns-resize; }
+      .selection-window::after { content: "Scroll inside this box"; position: absolute; top: 8px; left: 50%;
+        transform: translateX(-50%); padding: 4px 8px; border-radius: 999px; background: rgba(7,20,31,.88);
+        color: #d8fff8; font: 650 11px/1.2 system-ui,sans-serif; white-space: nowrap; pointer-events: none; }
+      .selection-window:focus-visible { outline: 2px solid #9bc2ff; outline-offset: 3px; }
+      .panel { position: fixed; right: 18px; bottom: 18px; width: min(330px, calc(100vw - 36px));
+        box-sizing: border-box; padding: 13px; border: 1px solid rgba(120,169,255,.55);
+        border-radius: 12px; background: #0c1a27; color: #f5f8ff; box-shadow: 0 12px 36px rgba(0,0,0,.35);
+        font: 500 12px/1.4 system-ui,sans-serif; pointer-events: auto; }
+      .title { font-weight: 750; font-size: 13px; margin-bottom: 4px; }
+      .hint { color: #b8c7dc; margin-bottom: 10px; }
+      .actions { display: flex; justify-content: flex-end; gap: 8px; }
+      button { border: 1px solid #476384; border-radius: 8px; padding: 7px 10px; background: #13263d;
+        color: #eef5ff; font: 650 12px system-ui,sans-serif; cursor: pointer; }
+      button.primary { border-color: #6b9cff; background: #3478e5; color: white; }
+      button:focus-visible { outline: 2px solid #9bc2ff; outline-offset: 2px; }
+    `;
+    const selectionWindow = document.createElement("div");
+    selectionWindow.className = "selection-window";
+    selectionWindow.tabIndex = 0;
+    selectionWindow.style.left = `${state.rect.left}px`;
+    selectionWindow.style.top = `${state.rect.top}px`;
+    selectionWindow.style.width = `${state.rect.width}px`;
+    selectionWindow.style.height = `${state.rect.height}px`;
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = "Choose where this capture ends";
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "Scroll down as far as you want, then click Capture to here.";
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    const finish = document.createElement("button");
+    finish.type = "button";
+    finish.className = "primary";
+    finish.textContent = "Capture to here";
+    actions.append(cancel, finish);
+    panel.append(title, hint, actions);
+    shadow.append(style, selectionWindow, panel);
+    document.documentElement.append(host);
+    selectionWindow.focus({ preventScroll: true });
+    cleanupBag.add(() => host.remove());
+    state.manualControlCleanup = () => cleanupBag.cleanup();
+
+    const currentScrollPosition = () => state.scroller?.type === "element"
+      ? Math.max(0, Number(state.scroller.element?.scrollTop) || 0)
+      : Math.max(0, Number(window.scrollY) || 0);
+    const startScrollPosition = state.scroller?.type === "element"
+      ? state.scroller.originalScrollTop
+      : state.originalY;
+
+    function scrollSelectedContent(deltaY) {
+      const delta = Number(deltaY) || 0;
+      if (!delta) return;
+      if (state.scroller?.type === "element" && state.scroller.element?.isConnected) {
+        state.scroller.element.scrollTop += delta;
+        return;
+      }
+      window.scrollBy({ left: 0, top: delta, behavior: "auto" });
+    }
+
+    function wheelDelta(event) {
+      if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * 16;
+      if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * Math.max(1, state.rect.height);
+      return event.deltaY;
+    }
+
+    cleanupBag.listen(selectionWindow, "wheel", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      scrollSelectedContent(wheelDelta(event));
+    }, { passive: false });
+    cleanupBag.listen(selectionWindow, "keydown", (event) => {
+      const pageStep = Math.max(80, state.rect.height * 0.85);
+      const keyDeltas = {
+        ArrowDown: 56,
+        ArrowUp: -56,
+        PageDown: pageStep,
+        PageUp: -pageStep,
+        " ": event.shiftKey ? -pageStep : pageStep,
+      };
+      const delta = keyDeltas[event.key];
+      if (!Number.isFinite(delta)) return;
+      event.preventDefault();
+      scrollSelectedContent(delta);
+    });
+    cleanupBag.listen(window, "wheel", (event) => {
+      if (event.composedPath().includes(host)) return;
+      event.preventDefault();
+    }, { capture: true, passive: false });
+
+    async function cancelManual() {
+      if (state.phase !== "manual-scroll") return;
+      state.phase = "cancelling";
+      cleanupBag.cleanup();
+      await restoreManualStartPosition(state);
+      outcome.settle({ ok: false, cancelled: true, error: "Capture cancelled" });
+    }
+
+    async function finishManual() {
+      if (state.phase !== "manual-scroll") return;
+      const endScrollPosition = currentScrollPosition();
+      if (endScrollPosition < startScrollPosition - CAPTURE_LIMITS.SCROLL_POSITION_TOLERANCE_CSS) {
+        hint.textContent = "Scroll downward from the starting point, then capture.";
+        return;
+      }
+      if (state.scroller?.type === "element") {
+        const element = state.scroller.element;
+        const containerRect = element.getBoundingClientRect();
+        const cropTopInContainer = state.rect.top - containerRect.top;
+        state.manualEndContentY = Math.min(
+          Number(element.scrollHeight),
+          endScrollPosition + cropTopInContainer + state.rect.height,
+        );
+      } else {
+        const page = globalScope.Scroll2PDFPageCapture.getPageMetrics();
+        state.manualEndContentY = Math.min(page.totalHeight, endScrollPosition + state.rect.bottom);
+      }
+      state.manualEndContentY = Math.max(
+        state.startContentY + state.rect.height,
+        state.manualEndContentY,
+      );
+      state.phase = "selected";
+      cleanupBag.cleanup();
+      await restoreManualStartPosition(state);
+      outcome.settle({
+        ok: true,
+        selection: {
+          mode: CAPTURE_MODES.SELECTED_AREA,
+          manualScroll: true,
+          endContentY: state.manualEndContentY,
+        },
+      });
+    }
+
+    cleanupBag.listen(cancel, "click", () => { void cancelManual(); });
+    cleanupBag.listen(finish, "click", () => { void finishManual(); });
+    cleanupBag.listen(window, "keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        void cancelManual();
+      }
+    }, true);
+    state.cancel = cancelManual;
+  }
+
+  function startSelection(captureId, options = {}) {
     if (!captureId) return Promise.reject(new Error("A capture ID is required."));
     if (session) return Promise.reject(new Error("Another area selection is already active."));
 
@@ -84,10 +261,15 @@
         scrollInterferenceCleanup: null,
         hiddenElements: new Map(),
         bottomChromeElements: new Set(),
+        manualScroll: Boolean(options.manualScroll),
+        manualEndContentY: null,
+        manualControlCleanup: null,
       };
       session = state;
       const outcome = createOneShotOutcome((value) => {
         overlay.cleanup();
+        state.manualControlCleanup?.();
+        state.manualControlCleanup = null;
         if (value?.cancelled) session = null;
         resolve(value);
       });
@@ -148,6 +330,10 @@
             + Math.max(0, capturedRect.top - containerRect.top);
         } else {
           state.startContentY = state.originalY + capturedRect.top;
+        }
+        if (state.manualScroll) {
+          startManualExtentSelection(state, outcome);
+          return;
         }
         state.phase = "selected";
         outcome.settle({ ok: true, selection: { mode: CAPTURE_MODES.SELECTED_AREA } });
@@ -241,11 +427,14 @@
   function getWindowScrollerMetrics(state) {
     const page = globalScope.Scroll2PDFPageCapture.getPageMetrics();
     const maximumScroll = Math.max(0, page.totalHeight - page.viewportHeight);
+    const captureEnd = Number.isFinite(state.manualEndContentY)
+      ? Math.min(page.totalHeight, state.manualEndContentY)
+      : page.totalHeight;
     const crop = currentCropForWindow(state, page);
     const contentPosition = page.scrollY + crop.top;
-    const contentBottom = Math.min(page.totalHeight, contentPosition + crop.height);
+    const contentBottom = Math.min(captureEnd, contentPosition + crop.height);
     let nextPosition = null;
-    if (contentBottom < page.totalHeight - CAPTURE_LIMITS.SCROLL_POSITION_TOLERANCE_CSS) {
+    if (contentBottom < captureEnd - CAPTURE_LIMITS.SCROLL_POSITION_TOLERANCE_CSS) {
       nextPosition = page.scrollY < maximumScroll - CAPTURE_LIMITS.SCROLL_POSITION_TOLERANCE_CSS
         ? Math.min(page.scrollY + state.rect.height, maximumScroll)
         : page.scrollY;
@@ -256,7 +445,7 @@
       contentPositionCss: contentPosition,
       scrollPositionCss: page.scrollY,
       contentStartCss: state.startContentY,
-      totalContentHeightCss: page.totalHeight,
+      totalContentHeightCss: captureEnd,
       contentViewportHeightCss: crop.height,
       viewportCssWidth: page.viewportWidth,
       viewportCssHeight: page.viewportHeight,
@@ -276,10 +465,13 @@
     const crop = currentCropForElement(state, containerRect);
     const cropTopInContainer = crop.top - containerRect.top;
     const contentPosition = scrollTop + cropTopInContainer;
-    const contentBottom = contentPosition + crop.height;
+    const captureEnd = Number.isFinite(state.manualEndContentY)
+      ? Math.min(Number(element.scrollHeight), state.manualEndContentY)
+      : Number(element.scrollHeight);
+    const contentBottom = Math.min(captureEnd, contentPosition + crop.height);
     const maximumScroll = Math.max(0, Number(element.scrollHeight) - Number(element.clientHeight));
     let nextPosition = null;
-    if (contentBottom < Number(element.scrollHeight) - CAPTURE_LIMITS.SCROLL_POSITION_TOLERANCE_CSS) {
+    if (contentBottom < captureEnd - CAPTURE_LIMITS.SCROLL_POSITION_TOLERANCE_CSS) {
       nextPosition = scrollTop < maximumScroll - CAPTURE_LIMITS.SCROLL_POSITION_TOLERANCE_CSS
         ? Math.min(scrollTop + crop.height, maximumScroll)
         : scrollTop;
@@ -290,7 +482,7 @@
       contentPositionCss: contentPosition,
       scrollPositionCss: scrollTop,
       contentStartCss: state.startContentY,
-      totalContentHeightCss: Number(element.scrollHeight),
+      totalContentHeightCss: captureEnd,
       contentViewportHeightCss: crop.height,
       viewportCssWidth: window.innerWidth,
       viewportCssHeight: window.innerHeight,
@@ -479,7 +671,7 @@
 
   function cancelSelection(captureId) {
     if (!session || (captureId && session.captureId !== captureId)) return { ok: true, cancelled: false };
-    if (session.phase === "selecting") session.cancel?.();
+    if (session.phase === "selecting" || session.phase === "manual-scroll") session.cancel?.();
     return { ok: true, cancelled: true };
   }
 

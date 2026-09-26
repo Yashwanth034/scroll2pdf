@@ -11,7 +11,7 @@ const debugPort = 9750 + Math.floor(Math.random() * 150);
 const resultUrl = `${pathToFileURL(path.resolve(__dirname, "../result/result.html")).href}?id=result-e2e`;
 const screenshotPath = "/tmp/scroll2pdf-result.png";
 const editorScreenshotPath = "/tmp/scroll2pdf-editor-phase1.png";
-const browser = spawn("google-chrome", [
+const browser = spawn(process.env.S2P_CHROME || "google-chrome", [
   "--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run",
   `--user-data-dir=/tmp/scroll2pdf-result-e2e-${process.pid}`,
   `--remote-debugging-port=${debugPort}`,
@@ -630,14 +630,14 @@ const resultStoreStub = `
 
     await send("Page.navigate", { url: resultUrl.replace("result-e2e", "pdf-e2e") });
     await waitFor(
-      () => evaluate("!document.getElementById('pdf-result-card').hidden"),
+      () => evaluate("!document.getElementById('pdf-preview-surface').hidden"),
       15000,
-      "PDF result card",
+      "PDF preview",
     );
     check("PDF filename renders", await evaluate("document.getElementById('result-title').textContent.endsWith('.pdf')"));
     check("PDF source dimensions render", await evaluate("document.getElementById('result-dimensions').textContent.includes('900 × 5,200 px source')"));
     check("PDF metadata renders mode, orientation, and pages", await evaluate("document.getElementById('result-metadata').textContent === 'Scrollable Area · A4 PDF · Landscape · 6 pages'"));
-    check("PDF uses a compact result card instead of image preview", await evaluate("!document.getElementById('pdf-result-card').hidden && document.getElementById('preview-surface').hidden"));
+    check("PDF opens directly in the preview without a redundant ready card", await evaluate("!document.getElementById('pdf-preview-surface').hidden && document.getElementById('preview-surface').hidden && !document.getElementById('pdf-result-card')"));
     check("PDF download uses a local Blob URL", await evaluate("document.getElementById('download-image').href.startsWith('blob:')"));
     check("PDF download filename and action are correct", await evaluate("document.getElementById('download-image').download.endsWith('.pdf') && document.getElementById('download-image').textContent === 'Download PDF'"));
     check("PDF result does not expose image editing or clipboard controls",

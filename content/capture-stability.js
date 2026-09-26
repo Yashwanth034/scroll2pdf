@@ -282,19 +282,37 @@
   function collectRegionEdgeBars(regionRect, options = {}) {
     const documentValue = options.document || globalScope.document;
     const limit = Math.max(2, Number(options.limit) || CAPTURE_LIMITS.MAX_OVERLAY_SCAN_ELEMENTS);
-    const all = Array.from(documentValue.querySelectorAll("body *"));
-    const half = limit >> 1;
-    const sample = all.length > limit ? [...all.slice(0, half), ...all.slice(-half)] : all;
     const region = regionRect || {};
+    const candidates = new Set(collectRegionEdgeHitElements(region, {
+      document: documentValue,
+      edgeToleranceCss: Math.max(24, Math.min(96, (Number(region.height) || 0) * 0.12)),
+    }));
+    const semanticSelector = [
+      "header",
+      "nav",
+      "[role='banner']",
+      "[role='navigation']",
+      "[role='toolbar']",
+      "[class*='sticky']",
+      "[class*='header']",
+      "[class*='toolbar']",
+      "[class*='composer']",
+    ].join(", ");
+    for (const element of Array.from(documentValue.querySelectorAll(semanticSelector)).slice(0, 512)) {
+      candidates.add(element);
+    }
+
     const top = [];
     const bottom = [];
-    for (const element of sample) {
+    let scanned = 0;
+    for (const element of candidates) {
+      if (scanned >= limit) break;
+      scanned += 1;
+      if (typeof element?.getBoundingClientRect !== "function") continue;
       const style = window.getComputedStyle(element);
       if (style.visibility === "hidden" || style.display === "none") continue;
       const rect = element.getBoundingClientRect();
       if (Number(rect.width) <= 0 || Number(rect.height) <= 0) continue;
-      // Rows partially cut by the region edge are content, not chrome: a cut
-      // row extends beyond the edge, so the flush checks reject it.
       if (element.closest?.("article, [data-message-id], [data-mid], [role='listitem']")) continue;
       const edge = classifyChromeEdgeBar({ rect, regionRect: region });
       if (edge === "top") top.push(element);

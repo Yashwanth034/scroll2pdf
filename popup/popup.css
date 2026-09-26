@@ -238,6 +238,10 @@ fieldset {
   margin: 7px 0 0 44px;
 }
 
+.mode-suboption {
+  margin: -2px 0 2px 44px;
+}
+
 .screenshot-area-option input {
   position: absolute;
   width: 1px;

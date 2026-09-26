@@ -11,7 +11,7 @@ const debugPort = 9700 + Math.floor(Math.random() * 200);
 const popupUrl = pathToFileURL(path.resolve(__dirname, "../popup/popup.html")).href;
 const screenshotPath = "/tmp/scroll2pdf-popup.png";
 const screenshotModePath = "/tmp/scroll2pdf-popup-screenshot-mode.png";
-const browser = spawn("google-chrome", [
+const browser = spawn(process.env.S2P_CHROME || "google-chrome", [
   "--headless=new",
   "--no-sandbox",
   "--disable-gpu",
@@ -153,7 +153,8 @@ const chromeStub = `
       outputType: document.querySelector('[name="outputType"]:checked').value,
       quality: document.querySelector('[name="quality"]:checked').value,
       orientation: document.querySelector('[name="orientation"]:checked').value,
-      selectScreenshotArea: document.getElementById('select-screenshot-area').checked
+      selectScreenshotArea: document.getElementById('select-screenshot-area').checked,
+      manualSelectedAreaScroll: document.getElementById('selected-area-manual-scroll').checked
     })`);
     check("required defaults render", defaults === JSON.stringify({
       captureMode: "full-page",
@@ -161,6 +162,7 @@ const chromeStub = `
       quality: "high",
       orientation: "portrait",
       selectScreenshotArea: false,
+      manualSelectedAreaScroll: false,
     }));
 
     const geometry = JSON.parse(await evaluate(`JSON.stringify({
@@ -227,7 +229,8 @@ const chromeStub = `
     check("Screenshot shows the optional area toggle off by default",
       !screenshotMode.areaOptionHidden && !screenshotMode.areaToggleDisabled && !screenshotMode.areaToggleChecked);
     check("Screenshot forces lossless image settings", screenshotMode.configuration.outputType === "long-image"
-      && screenshotMode.configuration.quality === "high");
+      && screenshotMode.configuration.quality === "high"
+      && screenshotMode.configuration.manualSelectedAreaScroll === false);
     const selectedScreenshotOption = JSON.parse(await evaluate(`(() => {
       document.querySelector('label[for="select-screenshot-area"]').click();
       return JSON.stringify({
@@ -237,6 +240,25 @@ const chromeStub = `
     })()`));
     check("Screenshot area toggle enables selected capture",
       selectedScreenshotOption.checked && selectedScreenshotOption.configuration.selectScreenshotArea === true);
+    const selectedAreaOption = JSON.parse(await evaluate(`(() => {
+      document.querySelector('label[for="mode-selected-area"]').click();
+      return JSON.stringify({
+        hidden: document.getElementById('selected-area-manual-option').hidden,
+        disabled: document.getElementById('selected-area-manual-scroll').disabled,
+        checked: document.getElementById('selected-area-manual-scroll').checked
+      });
+    })()`));
+    check("Selected Area shows the manual-length toggle off by default",
+      !selectedAreaOption.hidden && !selectedAreaOption.disabled && !selectedAreaOption.checked);
+    const selectedAreaManual = JSON.parse(await evaluate(`(() => {
+      document.querySelector('label[for="selected-area-manual-scroll"]').click();
+      return JSON.stringify({
+        checked: document.getElementById('selected-area-manual-scroll').checked,
+        configuration: window.Scroll2PDFPopup.readCaptureConfiguration(document.getElementById('capture-form'))
+      });
+    })()`));
+    check("Selected Area manual-length toggle is included only for Selected Area",
+      selectedAreaManual.checked && selectedAreaManual.configuration.manualSelectedAreaScroll === true);
     const screenshotModeImage = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
     fs.writeFileSync(screenshotModePath, Buffer.from(screenshotModeImage.data, "base64"));
     const nonScreenshotOption = JSON.parse(await evaluate(`(() => {
@@ -304,6 +326,7 @@ const chromeStub = `
         quality: "standard",
         orientation: "landscape",
         selectScreenshotArea: false,
+        manualSelectedAreaScroll: false,
       },
     }));
     check(

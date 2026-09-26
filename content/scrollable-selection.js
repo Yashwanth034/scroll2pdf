@@ -59,7 +59,7 @@
     return document.elementsFromPoint(x, y).filter((element) => element !== host);
   }
 
-  function startSelection(captureId) {
+  function startSelection(captureId, options = {}) {
     if (!captureId) return Promise.reject(new Error("A capture ID is required."));
     if (session) return Promise.reject(new Error("Another area selection is already active."));
 
@@ -83,6 +83,7 @@
         bottomChromeElements: new Set(),
         bottomChromeRestored: false,
         overlayScanInitialized: false,
+        fromStart: Boolean(options.fromStart),
         phase: "selecting",
       };
       session = state;
@@ -142,6 +143,7 @@
             label: state.target.label,
             difficult: Boolean(state.target.difficult),
             captureDirection: state.target.captureDirection,
+            fromStart: state.fromStart,
           },
         });
       }
@@ -272,8 +274,8 @@
     // top or traverses older history. Ordinary scrollable panels still start at
     // the top so their full content is captured.
     const chatTarget = isChatTarget(state);
-    state.startFromCurrentPosition = chatTarget;
-    if (!chatTarget) {
+    state.startFromCurrentPosition = chatTarget && !state.fromStart;
+    if (!state.startFromCurrentPosition) {
       await setScrollTop(state.element, 0);
     }
     // The enter-chat composer is hidden from the very first frame so it never
@@ -343,9 +345,11 @@
     const limit = Math.max(2, CAPTURE_LIMITS.MAX_OVERLAY_SCAN_ELEMENTS);
     const half = limit >> 1;
     const stability = globalScope.Scroll2PDFCaptureStability;
-    const edgeToleranceCss = isChatTarget(state)
-      ? CAPTURE_LIMITS.DYNAMIC_POSITION_TOLERANCE_CSS
-      : undefined;
+    // Real app chrome is often inset slightly from the selected scroller edge.
+    // Use the bounded dynamic tolerance for every scrollable target, not only
+    // adapter-detected chats, so rendered-edge
+    // hit testing still sees bars that sit ~30-40px inside the crop.
+    const edgeToleranceCss = CAPTURE_LIMITS.DYNAMIC_POSITION_TOLERANCE_CSS;
     const boundedSample = all.length > limit ? [...all.slice(0, half), ...all.slice(-half)] : all;
     const edgeHits = stability.collectRegionEdgeHitElements(regionRect, { edgeToleranceCss });
     const sample = Array.from(new Set([...boundedSample, ...edgeHits]));

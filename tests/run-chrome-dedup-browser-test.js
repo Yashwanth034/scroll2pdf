@@ -73,7 +73,11 @@ async function createPage(url) {
   await send(socket, "Runtime.enable");
   await send(socket, "Page.enable");
   await send(socket, "Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
-  await waitFor(() => evaluate(socket, "document.readyState === 'complete' && !!document.body"), 30000, url);
+  await waitFor(
+    () => evaluate(socket, `location.href === ${JSON.stringify(url)} && document.readyState === 'complete' && !!document.body`),
+    30000,
+    url,
+  );
   await new Promise((resolve) => setTimeout(resolve, 1200));
   return { target, socket };
 }
